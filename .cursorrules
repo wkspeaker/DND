@@ -1,0 +1,86 @@
+{
+    "version": 1,
+    "rules": {
+        "file_organization": {
+            "description": "项目文件组织规则",
+            "rules": [
+                {
+                    "pattern": "Requirement/*.md",
+                    "description": "需求文档应放在Requirement目录下"
+                },
+                {
+                    "pattern": "*.xlsb",
+                    "description": "Excel文件应放在项目根目录"
+                }
+            ]
+        },
+        "vba_coding": {
+            "description": "VBA代码规范",
+            "rules": [
+                {
+                    "pattern": "Public Sub|Public Function",
+                    "description": "公共过程/函数必须使用Public关键字"
+                },
+                {
+                    "pattern": "Private Sub|Private Function",
+                    "description": "私有过程/函数必须使用Private关键字"
+                },
+                {
+                    "pattern": "Dim.*As",
+                    "description": "变量声明必须指定类型"
+                },
+                {
+                    "pattern": "On Error Resume Next",
+                    "description": "使用错误处理时必须包含On Error GoTo 0"
+                },
+                {
+                    "pattern": "'[^']*[\u4e00-\u9fa5]",
+                    "description": "代码注释必须使用英文"
+                },
+                {
+                    "pattern": "MsgBox.*[\u4e00-\u9fa5]",
+                    "description": "消息框文本必须使用英文"
+                }
+            ]
+        },
+        "excel_naming": {
+            "description": "Excel命名规范",
+            "rules": [
+                {
+                    "pattern": "sh[A-Z]\\w*",
+                    "description": "工作表CodeName必须以sh开头"
+                },
+                {
+                    "pattern": "[A-Z]\\w*",
+                    "description": "名称定义必须使用大写字母开头"
+                }
+            ]
+        },
+        "documentation": {
+            "description": "文档规范",
+            "rules": [
+                {
+                    "pattern": "##.*",
+                    "description": "Markdown文档必须使用二级标题作为主要章节"
+                },
+                {
+                    "pattern": "\\|.*\\|.*\\|.*\\|.*\\|",
+                    "description": "表格必须包含表头行"
+                }
+            ]
+        },
+        "worksheet_reference": {
+            "description": "工作表引用规范",
+            "rules": [
+                {
+                    "pattern": "Set\\s+ws\\s*=\\s*ThisWorkbook\\.Sheets\\(\"sh\\w+\"\\)",
+                    "description": "禁止使用Set ws = ThisWorkbook.Sheets()方式引用工作表,应直接使用CodeName"
+                },
+                {
+                    "pattern": "ws\\.Range",
+                    "description": "禁止使用ws.Range方式引用单元格,应直接使用CodeName.Range"
+                }
+            ]
+        }
+    }
+} 
