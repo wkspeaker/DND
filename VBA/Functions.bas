@@ -22,7 +22,7 @@ Public Function ConvertListObjectToMarkdown(ByVal TableName As String) As String
             ' Build header row
             headerRow = "|"
             For i = 1 To tbl.HeaderRowRange.Columns.Count
-                headerRow = headerRow & tbl.HeaderRowRange.Cells(1, i).Value & "|"
+                headerRow = headerRow & tbl.HeaderRowRange.Cells(1, i).value & "|"
             Next i
             
             ' Build separator row
@@ -39,7 +39,7 @@ Public Function ConvertListObjectToMarkdown(ByVal TableName As String) As String
                 For i = 1 To tbl.DataBodyRange.Rows.Count
                     dataRow = "|"
                     For j = 1 To tbl.DataBodyRange.Columns.Count
-                        dataRow = dataRow & tbl.DataBodyRange.Cells(i, j).Value & "|"
+                        dataRow = dataRow & tbl.DataBodyRange.Cells(i, j).value & "|"
                     Next j
                     Result = Result & vbCrLf & dataRow
                 Next i
@@ -48,7 +48,7 @@ Public Function ConvertListObjectToMarkdown(ByVal TableName As String) As String
             ' Output to worksheet
             outputRow = 1
             For Each dataRow In Split(Result, vbCrLf)
-                shOutput.Cells(outputRow, 1).Value = dataRow
+                shOutput.Cells(outputRow, 1).value = dataRow
                 outputRow = outputRow + 1
             Next dataRow
             
@@ -60,13 +60,13 @@ Public Function ConvertListObjectToMarkdown(ByVal TableName As String) As String
     
     ' If no matching table is found, return error message
     ConvertListObjectToMarkdown = "Table '" & TableName & "' not found in shTableSchema"
-    shOutput.Cells(1, 1).Value = ConvertListObjectToMarkdown
+    shOutput.Cells(1, 1).value = ConvertListObjectToMarkdown
 End Function
 
 ' Test function to function ConvertListObjectToMarkdown
 Public Sub TestConvertToMarkdown()
     ' Test converting table named "Test"
-    ConvertListObjectToMarkdown "CharacterEquipmentSchema"
+    ConvertListObjectToMarkdown "CharacterSpellSlotSchema"
 End Sub
 
 Private Function GetFieldColumn(ByVal TableName As String, ByVal FieldName As String) As Integer
@@ -74,7 +74,7 @@ Private Function GetFieldColumn(ByVal TableName As String, ByVal FieldName As St
     Dim ws As Worksheet
     Dim lo As ListObject
     Dim headerRange As Range
-    Dim Cell As Range
+    Dim cell As Range
     
     ' Get the worksheet based on table name
     Select Case TableName
@@ -86,6 +86,10 @@ Private Function GetFieldColumn(ByVal TableName As String, ByVal FieldName As St
             Set ws = shCharacterAttackSpell
         Case "CharacterEquipment"
             Set ws = shCharacterEquipment
+        Case "CharacterSpell"
+            Set ws = shCharacterSpell
+        Case "CharacterSpellSlot"
+            Set ws = shCharacterSpellSlot
         Case Else
             GetFieldColumn = 0
             Exit Function
@@ -96,12 +100,12 @@ Private Function GetFieldColumn(ByVal TableName As String, ByVal FieldName As St
     Set headerRange = lo.HeaderRowRange
     
     ' Find the column
-    For Each Cell In headerRange
-        If Cell.Value = FieldName Then
-            GetFieldColumn = Cell.Column - headerRange.Column + 1
+    For Each cell In headerRange
+        If cell.value = FieldName Then
+            GetFieldColumn = cell.Column - headerRange.Column + 1
             Exit Function
         End If
-    Next Cell
+    Next cell
     
     GetFieldColumn = 0
 End Function
@@ -122,7 +126,7 @@ Public Sub ReadCharacters()
             
             ' Set CharacterMaster properties from CharacterMasterList
             With charMaster
-                .CharacterId = CharacterMasterList(i, GetFieldColumn("CharacterMaster", "CharacterID"))
+                .CharacterID = CharacterMasterList(i, GetFieldColumn("CharacterMaster", "CharacterID"))
                 .CharacterType = CharacterMasterList(i, GetFieldColumn("CharacterMaster", "CharacterType"))
                 .CharacterStatus = CharacterMasterList(i, GetFieldColumn("CharacterMaster", "CharacterStatus"))
                 .Player = CharacterMasterList(i, GetFieldColumn("CharacterMaster", "Player"))
@@ -215,10 +219,15 @@ Public Sub ReadCharacters()
                 .Eyes = CharacterMasterList(i, GetFieldColumn("CharacterMaster", "Eyes"))
                 .Skin = CharacterMasterList(i, GetFieldColumn("CharacterMaster", "Skin"))
                 .Hair = CharacterMasterList(i, GetFieldColumn("CharacterMaster", "Hair"))
+                .SpellCastingClass = CharacterMasterList(i, GetFieldColumn("CharacterMaster", "SpellCastingClass"))
+                .SpellCastingAbility = CharacterMasterList(i, GetFieldColumn("CharacterMaster", "SpellCastingAbility"))
+                .SpellSaveDC = CharacterMasterList(i, GetFieldColumn("CharacterMaster", "SpellSaveDC"))
+                .SpellAttackBonus = CharacterMasterList(i, GetFieldColumn("CharacterMaster", "SpellAttackBonus"))
+                
             End With
             
             ' Add CharacterMaster to dictionary
-            Set Characters(charMaster.CharacterId) = charMaster
+            Set Characters(charMaster.CharacterID) = charMaster
         Next i
     End If
     
@@ -228,11 +237,11 @@ Public Sub ReadCharacters()
             If Characters.Exists(CharacterMemoList(j, GetFieldColumn("CharacterMemo", "CharacterID"))) Then
                 Set charMemo = New CharacterMemo
                 With charMemo
-                    .CharacterId = CharacterMemoList(j, GetFieldColumn("CharacterMemo", "CharacterID"))
+                    .CharacterID = CharacterMemoList(j, GetFieldColumn("CharacterMemo", "CharacterID"))
                     .MemoType = CharacterMemoList(j, GetFieldColumn("CharacterMemo", "MemoType"))
                     .Contents = CharacterMemoList(j, GetFieldColumn("CharacterMemo", "Contents"))
                 End With
-                Characters(charMemo.CharacterId).CharacterMemoList.Add charMemo
+                Characters(charMemo.CharacterID).CharacterMemoList.Add charMemo
             Else
                 dirtyDataCount = dirtyDataCount + 1
             End If
@@ -245,7 +254,7 @@ Public Sub ReadCharacters()
             If Characters.Exists(CharacterAttackSpellList(j, GetFieldColumn("CharacterAttackSpell", "CharacterID"))) Then
                 Set charAttackSpell = New CharacterAttackSpell
                 With charAttackSpell
-                    .CharacterId = CharacterAttackSpellList(j, GetFieldColumn("CharacterAttackSpell", "CharacterID"))
+                    .CharacterID = CharacterAttackSpellList(j, GetFieldColumn("CharacterAttackSpell", "CharacterID"))
                     .ItemType = CharacterAttackSpellList(j, GetFieldColumn("CharacterAttackSpell", "Type"))
                     .Name = CharacterAttackSpellList(j, GetFieldColumn("CharacterAttackSpell", "Name"))
                     .AtkBonus = CharacterAttackSpellList(j, GetFieldColumn("CharacterAttackSpell", "AtkBonus"))
@@ -254,7 +263,7 @@ Public Sub ReadCharacters()
                     .Attuned = ReadBoolean(CharacterAttackSpellList(j, GetFieldColumn("CharacterAttackSpell", "Attuned")))
                     .Equiped = ReadBoolean(CharacterAttackSpellList(j, GetFieldColumn("CharacterAttackSpell", "Equiped")))
                 End With
-                Characters(charAttackSpell.CharacterId).CharacterAttackSpellList.Add charAttackSpell
+                Characters(charAttackSpell.CharacterID).CharacterAttackSpellList.Add charAttackSpell
             Else
                 dirtyDataCount = dirtyDataCount + 1
             End If
@@ -267,14 +276,53 @@ Public Sub ReadCharacters()
             If Characters.Exists(CharacterEquipmentList(j, GetFieldColumn("CharacterEquipment", "CharacterID"))) Then
                 Set charEquipment = New CharacterEquipment
                 With charEquipment
-                    .CharacterId = CharacterEquipmentList(j, GetFieldColumn("CharacterEquipment", "CharacterID"))
+                    .CharacterID = CharacterEquipmentList(j, GetFieldColumn("CharacterEquipment", "CharacterID"))
                     .ItemType = CharacterEquipmentList(j, GetFieldColumn("CharacterEquipment", "Type"))
                     .Name = CharacterEquipmentList(j, GetFieldColumn("CharacterEquipment", "Name"))
                     .Quantity = CharacterEquipmentList(j, GetFieldColumn("CharacterEquipment", "Quantity"))
                     .Attuned = ReadBoolean(CharacterEquipmentList(j, GetFieldColumn("CharacterEquipment", "Attuned")))
                     .Equiped = ReadBoolean(CharacterEquipmentList(j, GetFieldColumn("CharacterEquipment", "Equiped")))
                 End With
-                Characters(charEquipment.CharacterId).pCharacterEquipmentList.Add charEquipment
+                Characters(charEquipment.CharacterID).CharacterEquipmentList.Add charEquipment
+            Else
+                dirtyDataCount = dirtyDataCount + 1
+            End If
+        Next j
+    End If
+    
+    ' Fifth pass: Process CharacterSpellList
+    If Not IsEmpty(CharacterSpellList) Then
+        For j = 1 To UBound(CharacterSpellList, 1)
+            If Characters.Exists(CharacterSpellList(j, GetFieldColumn("CharacterSpell", "CharacterID"))) Then
+                Dim charSpell As CharacterSpell
+                Set charSpell = New CharacterSpell
+                With charSpell
+                    .CharacterID = CharacterSpellList(j, GetFieldColumn("CharacterSpell", "CharacterID"))
+                    .SpellLevel = CharacterSpellList(j, GetFieldColumn("CharacterSpell", "SpellLevel"))
+                    .Name = CharacterSpellList(j, GetFieldColumn("CharacterSpell", "Name"))
+                    .Description = CharacterSpellList(j, GetFieldColumn("CharacterSpell", "Description"))
+                    .Prepared = ReadBoolean(CharacterSpellList(j, GetFieldColumn("CharacterSpell", "Prepared")))
+                End With
+                Characters(charSpell.CharacterID).CharacterSpellList.Add charSpell
+            Else
+                dirtyDataCount = dirtyDataCount + 1
+            End If
+        Next j
+    End If
+
+    ' Sixth pass: Process CharacterSpellSlotList
+    If Not IsEmpty(CharacterSpellSlotList) Then
+        For j = 1 To UBound(CharacterSpellSlotList, 1)
+            If Characters.Exists(CharacterSpellSlotList(j, GetFieldColumn("CharacterSpellSlot", "CharacterID"))) Then
+                Dim charSpellSlot As CharacterSpellSlot
+                Set charSpellSlot = New CharacterSpellSlot
+                With charSpellSlot
+                    .CharacterID = CharacterSpellSlotList(j, GetFieldColumn("CharacterSpellSlot", "CharacterID"))
+                    .SpellLevel = CharacterSpellSlotList(j, GetFieldColumn("CharacterSpellSlot", "SpellLevel"))
+                    .SlotsTotal = CharacterSpellSlotList(j, GetFieldColumn("CharacterSpellSlot", "SlotsTotal"))
+                    .SlotsExpended = CharacterSpellSlotList(j, GetFieldColumn("CharacterSpellSlot", "SlotsExpended"))
+                End With
+                Characters(charSpellSlot.CharacterID).CharacterSpellSlots.Add charSpellSlot
             Else
                 dirtyDataCount = dirtyDataCount + 1
             End If
@@ -292,6 +340,8 @@ Public Sub WriteCharacters()
     Dim charMemo As CharacterMemo
     Dim charAttackSpell As CharacterAttackSpell
     Dim charEquipment As CharacterEquipment
+    Dim charSpell As CharacterSpell
+    Dim charSpellSlot As CharacterSpellSlot
     Dim i As Long
     Dim j As Long
     Dim masterRowIndex As Long
@@ -302,6 +352,8 @@ Public Sub WriteCharacters()
     shCharacterMemo.ListObjects(1).DataBodyRange.Clear
     shCharacterAttackSpell.ListObjects(1).DataBodyRange.Clear
     shCharacterEquipment.ListObjects(1).DataBodyRange.Clear
+    shCharacterSpell.ListObjects(1).DataBodyRange.Clear
+    shCharacterSpellSlot.ListObjects(1).DataBodyRange.Clear
     
     ' Initialize master row index
     masterRowIndex = 1
@@ -311,7 +363,7 @@ Public Sub WriteCharacters()
         ' Write CharacterMaster data
         With shCharacterMaster.ListObjects(1)
             .ListRows.Add
-            .ListRows(masterRowIndex).Range(GetFieldColumn("CharacterMaster", "CharacterID")) = charMaster.CharacterId
+            .ListRows(masterRowIndex).Range(GetFieldColumn("CharacterMaster", "CharacterID")) = charMaster.CharacterID
             .ListRows(masterRowIndex).Range(GetFieldColumn("CharacterMaster", "CharacterType")) = charMaster.CharacterType
             .ListRows(masterRowIndex).Range(GetFieldColumn("CharacterMaster", "CharacterStatus")) = charMaster.CharacterStatus
             .ListRows(masterRowIndex).Range(GetFieldColumn("CharacterMaster", "Player")) = charMaster.Player
@@ -351,59 +403,6 @@ Public Sub WriteCharacters()
             .ListRows(masterRowIndex).Range(GetFieldColumn("CharacterMaster", "SavingThrowIntP")) = charMaster.SavingThrowIntP
             .ListRows(masterRowIndex).Range(GetFieldColumn("CharacterMaster", "SavingThrowWisP")) = charMaster.SavingThrowWisP
             .ListRows(masterRowIndex).Range(GetFieldColumn("CharacterMaster", "SavingThrowChaP")) = charMaster.SavingThrowChaP
-            .ListRows(masterRowIndex).Range(GetFieldColumn("CharacterMaster", "SkillAcrobatics")) = charMaster.SkillAcrobatics
-            .ListRows(masterRowIndex).Range(GetFieldColumn("CharacterMaster", "SkillAnimalHandling")) = charMaster.SkillAnimalHandling
-            .ListRows(masterRowIndex).Range(GetFieldColumn("CharacterMaster", "SkillArcana")) = charMaster.SkillArcana
-            .ListRows(masterRowIndex).Range(GetFieldColumn("CharacterMaster", "SkillAthletics")) = charMaster.SkillAthletics
-            .ListRows(masterRowIndex).Range(GetFieldColumn("CharacterMaster", "SkillDeception")) = charMaster.SkillDeception
-            .ListRows(masterRowIndex).Range(GetFieldColumn("CharacterMaster", "SkillHistory")) = charMaster.SkillHistory
-            .ListRows(masterRowIndex).Range(GetFieldColumn("CharacterMaster", "SkillInsight")) = charMaster.SkillInsight
-            .ListRows(masterRowIndex).Range(GetFieldColumn("CharacterMaster", "SkillIntimidation")) = charMaster.SkillIntimidation
-            .ListRows(masterRowIndex).Range(GetFieldColumn("CharacterMaster", "SkillInvestigation")) = charMaster.SkillInvestigation
-            .ListRows(masterRowIndex).Range(GetFieldColumn("CharacterMaster", "SkillMedicine")) = charMaster.SkillMedicine
-            .ListRows(masterRowIndex).Range(GetFieldColumn("CharacterMaster", "SkillNature")) = charMaster.SkillNature
-            .ListRows(masterRowIndex).Range(GetFieldColumn("CharacterMaster", "SkillPerception")) = charMaster.SkillPerception
-            .ListRows(masterRowIndex).Range(GetFieldColumn("CharacterMaster", "SkillPerformance")) = charMaster.SkillPerformance
-            .ListRows(masterRowIndex).Range(GetFieldColumn("CharacterMaster", "SkillPersuasion")) = charMaster.SkillPersuasion
-            .ListRows(masterRowIndex).Range(GetFieldColumn("CharacterMaster", "SkillReligion")) = charMaster.SkillReligion
-            .ListRows(masterRowIndex).Range(GetFieldColumn("CharacterMaster", "SkillSleightOfHand")) = charMaster.SkillSleightOfHand
-            .ListRows(masterRowIndex).Range(GetFieldColumn("CharacterMaster", "SkillStealth")) = charMaster.SkillStealth
-            .ListRows(masterRowIndex).Range(GetFieldColumn("CharacterMaster", "SkillSurvival")) = charMaster.SkillSurvival
-            .ListRows(masterRowIndex).Range(GetFieldColumn("CharacterMaster", "SkillAcrobaticsP")) = charMaster.SkillAcrobaticsP
-            .ListRows(masterRowIndex).Range(GetFieldColumn("CharacterMaster", "SkillAnimalHandlingP")) = charMaster.SkillAnimalHandlingP
-            .ListRows(masterRowIndex).Range(GetFieldColumn("CharacterMaster", "SkillArcanaP")) = charMaster.SkillArcanaP
-            .ListRows(masterRowIndex).Range(GetFieldColumn("CharacterMaster", "SkillAthleticsP")) = charMaster.SkillAthleticsP
-            .ListRows(masterRowIndex).Range(GetFieldColumn("CharacterMaster", "SkillDeceptionP")) = charMaster.SkillDeceptionP
-            .ListRows(masterRowIndex).Range(GetFieldColumn("CharacterMaster", "SkillHistoryP")) = charMaster.SkillHistoryP
-            .ListRows(masterRowIndex).Range(GetFieldColumn("CharacterMaster", "SkillInsightP")) = charMaster.SkillInsightP
-            .ListRows(masterRowIndex).Range(GetFieldColumn("CharacterMaster", "SkillIntimidationP")) = charMaster.SkillIntimidationP
-            .ListRows(masterRowIndex).Range(GetFieldColumn("CharacterMaster", "SkillInvestigationP")) = charMaster.SkillInvestigationP
-            .ListRows(masterRowIndex).Range(GetFieldColumn("CharacterMaster", "SkillMedicineP")) = charMaster.SkillMedicineP
-            .ListRows(masterRowIndex).Range(GetFieldColumn("CharacterMaster", "SkillNatureP")) = charMaster.SkillNatureP
-            .ListRows(masterRowIndex).Range(GetFieldColumn("CharacterMaster", "SkillPerceptionP")) = charMaster.SkillPerceptionP
-            .ListRows(masterRowIndex).Range(GetFieldColumn("CharacterMaster", "SkillPerformanceP")) = charMaster.SkillPerformanceP
-            .ListRows(masterRowIndex).Range(GetFieldColumn("CharacterMaster", "SkillPersuasionP")) = charMaster.SkillPersuasionP
-            .ListRows(masterRowIndex).Range(GetFieldColumn("CharacterMaster", "SkillReligionP")) = charMaster.SkillReligionP
-            .ListRows(masterRowIndex).Range(GetFieldColumn("CharacterMaster", "SkillSleightOfHandP")) = charMaster.SkillSleightOfHandP
-            .ListRows(masterRowIndex).Range(GetFieldColumn("CharacterMaster", "SkillStealthP")) = charMaster.SkillStealthP
-            .ListRows(masterRowIndex).Range(GetFieldColumn("CharacterMaster", "SkillSurvivalP")) = charMaster.SkillSurvivalP
-            .ListRows(masterRowIndex).Range(GetFieldColumn("CharacterMaster", "PassiveWisdom")) = charMaster.PassiveWisdom
-            .ListRows(masterRowIndex).Range(GetFieldColumn("CharacterMaster", "MaxHP")) = charMaster.MaxHP
-            .ListRows(masterRowIndex).Range(GetFieldColumn("CharacterMaster", "CurHP")) = charMaster.CurHP
-            .ListRows(masterRowIndex).Range(GetFieldColumn("CharacterMaster", "TmpHP")) = charMaster.TmpHP
-            .ListRows(masterRowIndex).Range(GetFieldColumn("CharacterMaster", "HD")) = charMaster.HD
-            .ListRows(masterRowIndex).Range(GetFieldColumn("CharacterMaster", "MaxHD")) = charMaster.MaxHD
-            .ListRows(masterRowIndex).Range(GetFieldColumn("CharacterMaster", "MoneyCP")) = charMaster.MoneyCP
-            .ListRows(masterRowIndex).Range(GetFieldColumn("CharacterMaster", "MoneySP")) = charMaster.MoneySP
-            .ListRows(masterRowIndex).Range(GetFieldColumn("CharacterMaster", "MoneyEP")) = charMaster.MoneyEP
-            .ListRows(masterRowIndex).Range(GetFieldColumn("CharacterMaster", "MoneyGP")) = charMaster.MoneyGP
-            .ListRows(masterRowIndex).Range(GetFieldColumn("CharacterMaster", "MoneyPP")) = charMaster.MoneyPP
-            .ListRows(masterRowIndex).Range(GetFieldColumn("CharacterMaster", "Age")) = charMaster.Age
-            .ListRows(masterRowIndex).Range(GetFieldColumn("CharacterMaster", "Height")) = charMaster.Height
-            .ListRows(masterRowIndex).Range(GetFieldColumn("CharacterMaster", "Weight")) = charMaster.Weight
-            .ListRows(masterRowIndex).Range(GetFieldColumn("CharacterMaster", "Eyes")) = charMaster.Eyes
-            .ListRows(masterRowIndex).Range(GetFieldColumn("CharacterMaster", "Skin")) = charMaster.Skin
-            .ListRows(masterRowIndex).Range(GetFieldColumn("CharacterMaster", "Hair")) = charMaster.Hair
         End With
         
         ' Write CharacterMemo data for current CharacterMaster
@@ -411,7 +410,7 @@ Public Sub WriteCharacters()
             With shCharacterMemo.ListObjects(1)
                 .ListRows.Add
                 tmpRowIndex = .DataBodyRange.Rows.Count
-                .ListRows(tmpRowIndex).Range(GetFieldColumn("CharacterMemo", "CharacterID")) = charMemo.CharacterId
+                .ListRows(tmpRowIndex).Range(GetFieldColumn("CharacterMemo", "CharacterID")) = charMemo.CharacterID
                 .ListRows(tmpRowIndex).Range(GetFieldColumn("CharacterMemo", "MemoType")) = charMemo.MemoType
                 .ListRows(tmpRowIndex).Range(GetFieldColumn("CharacterMemo", "Contents")) = charMemo.Contents
             End With
@@ -422,7 +421,7 @@ Public Sub WriteCharacters()
             With shCharacterAttackSpell.ListObjects(1)
                 .ListRows.Add
                 tmpRowIndex = .DataBodyRange.Rows.Count
-                .ListRows(tmpRowIndex).Range(GetFieldColumn("CharacterAttackSpell", "CharacterID")) = charAttackSpell.CharacterId
+                .ListRows(tmpRowIndex).Range(GetFieldColumn("CharacterAttackSpell", "CharacterID")) = charAttackSpell.CharacterID
                 .ListRows(tmpRowIndex).Range(GetFieldColumn("CharacterAttackSpell", "Type")) = charAttackSpell.ItemType
                 .ListRows(tmpRowIndex).Range(GetFieldColumn("CharacterAttackSpell", "Name")) = charAttackSpell.Name
                 .ListRows(tmpRowIndex).Range(GetFieldColumn("CharacterAttackSpell", "AtkBonus")) = charAttackSpell.AtkBonus
@@ -434,11 +433,11 @@ Public Sub WriteCharacters()
         Next charAttackSpell
         
         ' Write CharacterEquipment data for current CharacterMaster
-        For Each charEquipment In charMaster.pCharacterEquipmentList
+        For Each charEquipment In charMaster.CharacterEquipmentList
             With shCharacterEquipment.ListObjects(1)
                 .ListRows.Add
                 tmpRowIndex = .DataBodyRange.Rows.Count
-                .ListRows(tmpRowIndex).Range(GetFieldColumn("CharacterEquipment", "CharacterID")) = charEquipment.CharacterId
+                .ListRows(tmpRowIndex).Range(GetFieldColumn("CharacterEquipment", "CharacterID")) = charEquipment.CharacterID
                 .ListRows(tmpRowIndex).Range(GetFieldColumn("CharacterEquipment", "Type")) = charEquipment.ItemType
                 .ListRows(tmpRowIndex).Range(GetFieldColumn("CharacterEquipment", "Name")) = charEquipment.Name
                 .ListRows(tmpRowIndex).Range(GetFieldColumn("CharacterEquipment", "Quantity")) = charEquipment.Quantity
@@ -446,21 +445,46 @@ Public Sub WriteCharacters()
                 .ListRows(tmpRowIndex).Range(GetFieldColumn("CharacterEquipment", "Equiped")) = charEquipment.Equiped
             End With
         Next charEquipment
-        
+
+        ' Write CharacterSpell data for current CharacterMaster
+        For Each charSpell In charMaster.CharacterSpellList
+            With shCharacterSpell.ListObjects(1)
+                .ListRows.Add
+                tmpRowIndex = .DataBodyRange.Rows.Count
+                .ListRows(tmpRowIndex).Range(GetFieldColumn("CharacterSpell", "CharacterID")) = charSpell.CharacterID
+                .ListRows(tmpRowIndex).Range(GetFieldColumn("CharacterSpell", "SpellLevel")) = charSpell.SpellLevel
+                .ListRows(tmpRowIndex).Range(GetFieldColumn("CharacterSpell", "Name")) = charSpell.Name
+                .ListRows(tmpRowIndex).Range(GetFieldColumn("CharacterSpell", "Description")) = charSpell.Description
+                .ListRows(tmpRowIndex).Range(GetFieldColumn("CharacterSpell", "Prepared")) = charSpell.Prepared
+            End With
+        Next charSpell
+
+        ' Write CharacterSpellSlot data for current CharacterMaster
+        For Each charSpellSlot In charMaster.CharacterSpellSlots
+            With shCharacterSpellSlot.ListObjects(1)
+                .ListRows.Add
+                tmpRowIndex = .DataBodyRange.Rows.Count
+                .ListRows(tmpRowIndex).Range(GetFieldColumn("CharacterSpellSlot", "CharacterID")) = charSpellSlot.CharacterID
+                .ListRows(tmpRowIndex).Range(GetFieldColumn("CharacterSpellSlot", "SpellLevel")) = charSpellSlot.SpellLevel
+                .ListRows(tmpRowIndex).Range(GetFieldColumn("CharacterSpellSlot", "SlotsTotal")) = charSpellSlot.SlotsTotal
+                .ListRows(tmpRowIndex).Range(GetFieldColumn("CharacterSpellSlot", "SlotsExpended")) = charSpellSlot.SlotsExpended
+            End With
+        Next charSpellSlot
+
         masterRowIndex = masterRowIndex + 1
     Next charMaster
 End Sub
 
-Public Sub CharacterToUI(ByVal CharacterId As Long)
+Public Sub CharacterToUI(ByVal CharacterID As Long)
     ' Check if character exists in dictionary
-    If Not Characters.Exists(CharacterId) Then
-        MsgBox "Character ID " & CharacterId & " not found in dictionary", vbExclamation, "Error"
+    If Not Characters.Exists(CharacterID) Then
+        MsgBox "Character ID " & CharacterID & " not found in dictionary", vbExclamation, "Error"
         Exit Sub
     End If
     
     ' Get character from dictionary
     Dim Character As CharacterMaster
-    Set Character = Characters(CharacterId)
+    Set Character = Characters(CharacterID)
     
     ' Get all properties from CharacterMaster class
     Dim Prop As Variant
@@ -475,10 +499,9 @@ Public Sub CharacterToUI(ByVal CharacterId As Long)
     For Each Prop In Properties
         ' Skip Collection type properties
         PropValue = CallByName(Character, Prop, VbGet)
-        If TypeName(PropValue) = PROP_TYPE_COLLECTION Then
-            ' Skip this property as it's a collection
-            ' Collections will be handled in future updates
-        Else
+        'If TypeName(PropValue) = PROP_TYPE_COLLECTION Then
+            '�����˲����߼�
+        'Else
             ' Check if named range exists in shGeneral
             On Error Resume Next
             RangeExists = Not shGeneral.Range(Prop) Is Nothing
@@ -500,11 +523,58 @@ Public Sub CharacterToUI(ByVal CharacterId As Long)
                     shGeneral.Range(Prop) = PropValue
                 End If
             End If
-        End If
+        'End If
     Next Prop
+    
+    
+    '���CharacterMemoList�Ĵ���
+    If Not Character.CharacterMemoList Is Nothing Then
+        If Character.CharacterMemoList.Count > 0 Then
+            Dim charMemo As CharacterMemo
+            For Each charMemo In Character.CharacterMemoList
+                Call WriteDataBlockByRange(charMemo.MemoType, charMemo.Contents)
+            Next charMemo
+        End If
+    End If
+    
+    '����CharacterAttackSpellList
+    If Not Character.CharacterAttackSpellList Is Nothing Then
+        Dim charAttackSpell As CharacterAttackSpell
+        For Each charAttackSpell In Character.CharacterAttackSpellList
+            If charAttackSpell.ItemType = "Attack" Then
+                Call WriteAttacksByRange(charAttackSpell)
+            ElseIf charAttackSpell.ItemType = "Spell" Then
+                Call WriteSpellsByRange(charAttackSpell)
+            End If
+        Next charAttackSpell
+    End If
+    
+    '����CharacterEquipmentList
+    If Not Character.CharacterEquipmentList Is Nothing Then
+        Dim charEquipment As CharacterEquipment
+        For Each charEquipment In Character.CharacterEquipmentList
+            Call WriteEquipmentsByRange(charEquipment)
+        Next charEquipment
+    End If
+    
+    '����CharacterSpellList
+    If Not Character.CharacterSpellList Is Nothing Then
+        Dim charSpell As CharacterSpell
+        For Each charSpell In Character.CharacterSpellList
+            Call WriteSpellListByRange(charSpell)
+        Next charSpell
+    End If
+    
+    '����CharacterSpellSlots
+    If Not Character.CharacterSpellSlots Is Nothing Then
+        Dim charSpellSlot As CharacterSpellSlot
+        For Each charSpellSlot In Character.CharacterSpellSlots
+            Call WriteSpellSlotsByRange(charSpellSlot)
+        Next charSpellSlot
+    End If
 End Sub
 
-' Helper function to get properties from schema table
+' Helper function to get properties and types from schema table
 Private Function GetPropertiesFromSchema(ByVal SchemaName As String) As Variant
     Dim Properties As Collection
     Set Properties = New Collection
@@ -513,25 +583,28 @@ Private Function GetPropertiesFromSchema(ByVal SchemaName As String) As Variant
     Dim SchemaTable As ListObject
     Set SchemaTable = shTableSchema.ListObjects(SchemaName)
     
-    ' Get the field names from the schema
-    Dim DataRange As Range
-    Set DataRange = SchemaTable.ListColumns("�ֶ�").DataBodyRange
+    ' Get the field names and types from the schema
+    Dim FieldRange As Range, TypeRange As Range
+    Set FieldRange = SchemaTable.ListColumns("�ֶ�").DataBodyRange
+    Set TypeRange = SchemaTable.ListColumns("����").DataBodyRange
     
-    Dim Cell As Range
-    For Each Cell In DataRange
-        If Not IsEmpty(Cell) Then
-            Properties.Add Cell.Value
-        End If
-    Next Cell
-    
-    ' Convert collection to array
-    Dim Result() As Variant
-    ReDim Result(1 To Properties.Count)
     Dim i As Long
-    For i = 1 To Properties.Count
-        Result(i) = Properties(i)
+    For i = 1 To FieldRange.Rows.Count
+        If Not IsEmpty(FieldRange.Cells(i, 1)) Then
+            Dim arr(1 To 2) As Variant
+            arr(1) = FieldRange.Cells(i, 1).value ' ???
+            arr(2) = TypeRange.Cells(i, 1).value  ' ??
+            Properties.Add arr
+        End If
     Next i
     
+    ' Convert collection to 2D array
+    Dim Result() As Variant
+    ReDim Result(1 To Properties.Count, 1 To 2)
+    For i = 1 To Properties.Count
+        Result(i, 1) = Properties(i)(1)
+        Result(i, 2) = Properties(i)(2)
+    Next i
     GetPropertiesFromSchema = Result
 End Function
 
@@ -551,9 +624,9 @@ Public Function GetMaxCharacterId() As Long
 End Function
 
 ' ��Excel��Ԫ����ַ���ת��ΪBoolean
-Public Function ReadBoolean(ByVal Value As Variant) As Boolean
+Public Function ReadBoolean(ByVal value As Variant) As Boolean
     Dim s As String
-    s = UCase(Trim(CStr(Value)))
+    s = UCase(Trim(CStr(value)))
     Select Case s
         Case "Y", "YES"
             ReadBoolean = True
@@ -565,10 +638,504 @@ Public Function ReadBoolean(ByVal Value As Variant) As Boolean
 End Function
 
 ' ��Booleanֵת��ΪExcel�õ��ַ���
-Public Function WriteBoolean(ByVal Value As Boolean) As String
-    If Value Then
+Public Function WriteBoolean(ByVal value As Boolean) As String
+    If value Then
         WriteBoolean = "Y"
     Else
         WriteBoolean = "N"
     End If
+End Function
+
+'��CharacterIDName�ж�ȡCharacterID
+Public Function GetCharacterIDFromCharacterIDName(ByVal CharacterIDName As String) As Long
+    Dim pos As Long
+    pos = InStr(CharacterIDName, "|")
+    If pos > 0 Then
+        GetCharacterIDFromCharacterIDName = CLng(Trim(Left(CharacterIDName, pos - 1)))
+    Else
+        GetCharacterIDFromCharacterIDName = 0
+    End If
+End Function
+
+'�����µ�Character����,CharacterIDȡ���ֵ��1, ������CharacterIDֵ
+Public Function AddNewCharacter() As Long
+    Dim NewCharacterId As Long
+    
+    ' New character - get max ID and add 1
+
+    NewCharacterId = GetMaxCharacterId() + 1
+        
+    ' Create new character and add to dictionary
+    Dim newCharacter As CharacterMaster
+    Set newCharacter = New CharacterMaster
+    newCharacter.CharacterID = NewCharacterId
+        
+    ' Add to dictionary
+    Characters.Add NewCharacterId, newCharacter
+    
+    AddNewCharacter = NewCharacterId
+End Function
+
+'��������:��ָ���й��������ᴰ���·�
+Public Sub ScrollToRow(ByVal TargetRegion As String)
+    Dim freezeRow As Long
+    Dim targetRow As Long
+    
+    targetRow = shGeneral.Range(TargetRegion).Row
+    freezeRow = ActiveWindow.SplitRow
+    If freezeRow < 1 Then freezeRow = 0
+    'ѡ��Ŀ�굥Ԫ��
+    shGeneral.Cells(targetRow, 1).Select
+    '����,ʹĿ������ʾ�ڶ������·�
+    ActiveWindow.ScrollRow = targetRow
+End Sub
+
+'����shGeneralҳ��ָ����������ĵڶ��м��Ժ�����
+Public Sub PrepDataBlockByRange(ByVal TargetName As String, Optional HasHeadLine As Boolean = False)
+    Dim rng As Range
+    Dim colCount As Long
+    
+    '��λ�����������CurrentRegion
+    On Error Resume Next
+    Set rng = shGeneral.Range(TargetName).CurrentRegion
+    On Error GoTo 0
+    
+    If rng Is Nothing Then
+        MsgBox "Named range '" & TargetName & "' not found.", vbExclamation, "Error"
+        Exit Sub
+    End If
+    
+    colCount = rng.Columns.Count
+    If colCount > 1 Then
+        '����HasHeadLine�����������,��մӵڶ��п�ʼ������
+        If HasHeadLine Then
+            rng.Offset(1, 1).Resize(rng.Rows.Count - 1, colCount - 1).ClearContents
+        Else
+            rng.Offset(0, 1).Resize(rng.Rows.Count, colCount - 1).ClearContents
+        End If
+    End If
+End Sub
+
+'��shGeneralҳ��ָ�����������Ҳ���������д������
+Public Sub WriteDataBlockByRange(ByVal TargetName As String, ByVal content As String)
+    Dim targetCell As Range
+    Dim writeCell As Range
+    Dim i As Long
+    
+    On Error Resume Next
+    Set targetCell = shGeneral.Range(TargetName)
+    On Error GoTo 0
+    
+    If targetCell Is Nothing Then
+        MsgBox "Named range '" & TargetName & "' not found.", vbExclamation, "Error"
+        Exit Sub
+    End If
+    
+    '���Ҳ����ڵ�Ԫ��ʼ,���²��ҿյ�Ԫ��
+    i = 0
+    Do
+        Set writeCell = targetCell.Offset(i, 1)
+        If IsEmpty(writeCell.value) Then
+            writeCell.value = content
+            Exit Sub
+        End If
+        i = i + 1
+        '��ֹ��ѭ��,������50��
+        If i > 50 Then Exit Do
+    Loop
+    '���û�п�λ,��д��
+End Sub
+
+'д��������Ϣ��shGeneralҳ��
+Public Sub WriteAttacksByRange(ByRef Attack As CharacterAttackSpell)
+    Const TargetName As String = "Attacks"
+    Dim targetCell As Range, writeCell As Range
+    Dim i As Long
+    On Error Resume Next
+    Set targetCell = shGeneral.Range(TargetName)
+    On Error GoTo 0
+    If targetCell Is Nothing Then
+        MsgBox "Named range '" & TargetName & "' not found.", vbExclamation, "Error"
+        Exit Sub
+    End If
+    i = 0
+    Do
+        Set writeCell = targetCell.Offset(i, 1)
+        If IsEmpty(writeCell.value) Then
+            writeCell.value = Attack.Name
+            writeCell.Offset(0, 1).value = Attack.AtkBonus
+            writeCell.Offset(0, 2).value = Attack.Damage_Type
+            writeCell.Offset(0, 3).value = WriteBoolean(Attack.Equiped)
+            writeCell.Offset(0, 4).value = WriteBoolean(Attack.Attuned)
+            Exit Sub
+        End If
+        i = i + 1
+        If i > 50 Then Exit Do
+    Loop
+End Sub
+
+'д�뷨����Ϣ��shGeneralҳ��
+Public Sub WriteSpellsByRange(ByRef Spell As CharacterAttackSpell)
+    Const TargetName As String = "Spells"
+    Dim targetCell As Range, writeCell As Range
+    Dim i As Long
+    On Error Resume Next
+    Set targetCell = shGeneral.Range(TargetName)
+    On Error GoTo 0
+    If targetCell Is Nothing Then
+        MsgBox "Named range '" & TargetName & "' not found.", vbExclamation, "Error"
+        Exit Sub
+    End If
+    i = 0
+    Do
+        Set writeCell = targetCell.Offset(i, 1)
+        If IsEmpty(writeCell.value) Then
+            writeCell.value = Spell.Name
+            writeCell.Offset(0, 1).value = Spell.AtkBonus
+            writeCell.Offset(0, 2).value = Spell.Damage_Type
+            writeCell.Offset(0, 3).value = Spell.SpellMemo
+            Exit Sub
+        End If
+        i = i + 1
+        If i > 50 Then Exit Do
+    Loop
+End Sub
+
+'д��װ����Ϣ��shGeneralҳ��
+Public Sub WriteEquipmentsByRange(ByRef Equipment As CharacterEquipment)
+    Const TargetName As String = "Equipments"
+    Dim targetCell As Range, writeCell As Range
+    Dim i As Long
+    On Error Resume Next
+    Set targetCell = shGeneral.Range(TargetName)
+    On Error GoTo 0
+    If targetCell Is Nothing Then
+        MsgBox "Named range '" & TargetName & "' not found.", vbExclamation, "Error"
+        Exit Sub
+    End If
+    i = 0
+    Do
+        Set writeCell = targetCell.Offset(i, 1)
+        If IsEmpty(writeCell.value) Then
+            writeCell.value = Equipment.Name
+            writeCell.Offset(0, 1).value = Equipment.Quantity
+            writeCell.Offset(0, 2).value = WriteBoolean(Equipment.Attuned)
+            writeCell.Offset(0, 3).value = WriteBoolean(Equipment.Equiped)
+            Exit Sub
+        End If
+        i = i + 1
+        If i > 50 Then Exit Do
+    Loop
+End Sub
+
+'д�뷨���б���shGeneralҳ��
+Public Sub WriteSpellListByRange(ByRef Spell As CharacterSpell)
+    Const TargetName As String = "SpellList"
+    Dim targetCell As Range, writeCell As Range
+    Dim i As Long
+    On Error Resume Next
+    Set targetCell = shGeneral.Range(TargetName)
+    On Error GoTo 0
+    If targetCell Is Nothing Then
+        MsgBox "Named range '" & TargetName & "' not found.", vbExclamation, "Error"
+        Exit Sub
+    End If
+    i = 0
+    Do
+        Set writeCell = targetCell.Offset(i, 1)
+        If IsEmpty(writeCell.value) Then
+            writeCell.value = Spell.SpellLevel
+            writeCell.Offset(0, 1).value = Spell.Name
+            writeCell.Offset(0, 2).value = Spell.Description
+            writeCell.Offset(0, 3).value = WriteBoolean(Spell.Prepared)
+            Exit Sub
+        End If
+        i = i + 1
+        If i > 50 Then Exit Do
+    Loop
+End Sub
+
+'д�뷨��λ��shGeneralҳ��
+Public Sub WriteSpellSlotsByRange(ByRef SpellSlot As CharacterSpellSlot)
+    Const TargetName As String = "SpellSlots"
+    Dim targetCell As Range, writeCell As Range
+    Dim i As Long
+    On Error Resume Next
+    Set targetCell = shGeneral.Range(TargetName)
+    On Error GoTo 0
+    If targetCell Is Nothing Then
+        MsgBox "Named range '" & TargetName & "' not found.", vbExclamation, "Error"
+        Exit Sub
+    End If
+    i = 0
+    Do
+        Set writeCell = targetCell.Offset(i, 1)
+        If IsEmpty(writeCell.value) Then
+            writeCell.value = SpellSlot.SpellLevel
+            writeCell.Offset(0, 1).value = SpellSlot.SlotsTotal
+            writeCell.Offset(0, 2).value = SpellSlot.SlotsExpended
+            Exit Sub
+        End If
+        i = i + 1
+        If i > 10 Then Exit Do
+    Loop
+End Sub
+
+
+'�����������������ݿ�
+Public Sub PrepDataBlocksBetweenNames(ByVal StartName As String, Optional HasHeadLine As Boolean = False)
+    Dim startCell As Range
+    ' 1.������ʵ��Ԫ��
+    On Error Resume Next
+    Set startCell = shGeneral.Range(StartName)
+    On Error GoTo 0
+    If startCell Is Nothing Then
+        MsgBox "Named range '" & StartName & "' not found.", vbExclamation, "Error"
+        Exit Sub
+    End If
+
+    Dim startRow As Long
+    startRow = startCell.Row
+    Dim col As Long
+    col = startCell.Column
+
+    ' 2.���²�����һ�������Ƶĵ�Ԫ��,������100��
+    Dim endRow As Long
+    Dim i As Long
+    endRow = startRow + 100
+    For i = startRow + 1 To startRow + 100
+        If i > shGeneral.Rows.Count Then Exit For
+        If HasCellName(shGeneral.Cells(i, col)) Then
+            If shGeneral.Cells(i, col).Name.NameLocal <> shGeneral.Cells(i, col).Address(False, False, xlA1, True) Then
+                endRow = i
+                Exit For
+            End If
+        End If
+    Next i
+    If endRow > shGeneral.Rows.Count Then endRow = shGeneral.Rows.Count
+
+    ' 3.��ȡ����(��ʼ��+1 �� ������-1)
+    Dim regionStart As Long, regionEnd As Long
+    regionStart = startRow + 1
+    regionEnd = endRow - 1
+    If regionStart > regionEnd Then Exit Sub '������Ч
+
+    'ֻ���������������
+    Dim usedColCount As Long
+    usedColCount = shGeneral.UsedRange.Columns.Count
+    Dim r As Long, c As Long
+    For r = regionStart To regionEnd
+        For c = 1 To usedColCount
+            Dim cell As Range
+            Set cell = shGeneral.Cells(r, c)
+            If HasCellName(cell) Then
+                If cell.Name.NameLocal <> cell.Address(False, False, xlA1, True) Then
+                    Call PrepDataBlockByRange(cell.Name.NameLocal, HasHeadLine)
+                End If
+            End If
+        Next c
+    Next r
+End Sub
+
+Function HasCellName(cell As Range) As Boolean
+    On Error Resume Next
+    Dim n As String
+    n = cell.Name.NameLocal
+    HasCellName = (Err.Number = 0)
+    On Error GoTo 0
+End Function
+
+
+'��ȡָ������������������Ԫ��������б�
+Public Function GetNamesByRegionName(ByVal TargetName As String) As Collection
+    Dim startCell As Range
+    Dim startRow As Long, endRow As Long, col As Long, i As Long
+    Dim usedColCount As Long
+    Dim cell As Range
+    Dim namesList As New Collection
+    
+    On Error Resume Next
+    Set startCell = shGeneral.Range(TargetName)
+    On Error GoTo 0
+    If startCell Is Nothing Then Exit Function
+    
+    startRow = startCell.Row
+    col = startCell.Column
+    endRow = startRow + 100
+    For i = startRow + 1 To startRow + 100
+        If i > shGeneral.Rows.Count Then Exit For
+        If HasCellName(shGeneral.Cells(i, col)) Then
+            If shGeneral.Cells(i, col).Name.NameLocal <> shGeneral.Cells(i, col).Address(False, False, xlA1, True) Then
+                endRow = i
+                Exit For
+            End If
+        End If
+    Next i
+    If endRow > shGeneral.Rows.Count Then endRow = shGeneral.Rows.Count
+    
+    Dim regionStart As Long, regionEnd As Long
+    regionStart = startRow + 1
+    regionEnd = endRow - 1
+    If regionStart > regionEnd Then Set GetNamesByRegionName = namesList: Exit Function
+    
+    usedColCount = shGeneral.UsedRange.Columns.Count
+    Dim r As Long, c As Long
+    For r = regionStart To regionEnd
+        For c = 1 To usedColCount
+            Set cell = shGeneral.Cells(r, c)
+            If HasCellName(cell) Then
+                If cell.Name.NameLocal <> cell.Address(False, False, xlA1, True) Then
+                    namesList.Add cell.Name.NameLocal
+                End If
+            End If
+        Next c
+    Next r
+    Set GetNamesByRegionName = namesList
+End Function
+
+
+
+'��shGeneral��ȡ���ݵ�Character����
+Public Function UIToCharacter(ByVal CharacterID As Long) As CharacterMaster
+    Dim Character As New CharacterMaster
+    Dim Properties As Variant
+    Dim v As Variant
+    Dim i As Long
+    Dim Prop As String, PropType As String
+    
+    ' 1.��ȡ������
+    Properties = GetPropertiesFromSchema("CharacterMasterSchema")
+    For i = 1 To UBound(Properties, 1)
+        Prop = Properties(i, 1)
+        PropType = LCase(Trim(Properties(i, 2)))
+        On Error Resume Next
+        v = shGeneral.Range(Prop).value
+        On Error GoTo 0
+        If PropType = "bool" Or PropType = "boolean" Then
+            CallByName Character, Prop, VbLet, ReadBoolean(v)
+        Else
+            CallByName Character, Prop, VbLet, v
+        End If
+    Next i
+    Character.CharacterID = CharacterID
+    
+    ' 2.��ȡCharacterMemoList(�ޱ�ͷ,��������һ��)
+    Dim memoNames As Collection, memoName As Variant
+    Set memoNames = GetNamesByRegionName("RegionMemo")
+    For Each memoName In memoNames
+        Dim memoCell As Range, memoRegion As Range
+        Set memoCell = shGeneral.Range(memoName)
+        Set memoRegion = memoCell.CurrentRegion
+        Dim rowIdx As Long, colIdx As Long, content As String, hasData As Boolean
+        For rowIdx = 1 To memoRegion.Rows.Count
+            content = ""
+            hasData = False
+            For colIdx = 2 To memoRegion.Columns.Count
+                v = memoRegion.Cells(rowIdx, colIdx).value
+                If Not IsEmpty(v) And v <> "" Then
+                    If content <> "" Then content = content & ";"
+                    content = content & v
+                    hasData = True
+                End If
+            Next colIdx
+            If hasData Then
+                Dim memoObj As CharacterMemo
+                Set memoObj = New CharacterMemo
+                memoObj.CharacterID = CharacterID
+                memoObj.MemoType = memoName
+                memoObj.Contents = content
+                Character.CharacterMemoList.Add memoObj
+            End If
+        Next rowIdx
+    Next memoName
+    
+    ' 3.��ȡAttacks/Spells/Equipments(�б�ͷ,������һ�к͵�һ��)
+    Dim listNames As Collection, listName As Variant
+    Set listNames = GetNamesByRegionName("RegionList")
+    For Each listName In listNames
+        Dim listCell As Range, listRegion As Range
+        Set listCell = shGeneral.Range(listName)
+        Set listRegion = listCell.CurrentRegion
+        For rowIdx = 2 To listRegion.Rows.Count '������ͷ
+            hasData = False
+            For colIdx = 2 To listRegion.Columns.Count
+                v = listRegion.Cells(rowIdx, colIdx).value
+                If Not IsEmpty(v) And v <> "" Then hasData = True
+            Next colIdx
+            If hasData Then
+                Select Case listName
+                    Case "Attacks"
+                        Dim atk As CharacterAttackSpell
+                        Set atk = New CharacterAttackSpell
+                        atk.CharacterID = CharacterID
+                        atk.ItemType = "Attack"
+                        atk.Name = listRegion.Cells(rowIdx, 2).value
+                        atk.AtkBonus = listRegion.Cells(rowIdx, 3).value
+                        atk.Damage_Type = listRegion.Cells(rowIdx, 4).value
+                        atk.Equiped = ReadBoolean(listRegion.Cells(rowIdx, 5).value)
+                        atk.Attuned = ReadBoolean(listRegion.Cells(rowIdx, 6).value)
+                        Character.CharacterAttackSpellList.Add atk
+                    Case "Spells"
+                        Dim spl As CharacterAttackSpell
+                        Set spl = New CharacterAttackSpell
+                        spl.CharacterID = CharacterID
+                        spl.ItemType = "Spell"
+                        spl.Name = listRegion.Cells(rowIdx, 2).value
+                        spl.AtkBonus = listRegion.Cells(rowIdx, 3).value
+                        spl.Damage_Type = listRegion.Cells(rowIdx, 4).value
+                        spl.SpellMemo = listRegion.Cells(rowIdx, 5).value
+                        Character.CharacterAttackSpellList.Add spl
+                    Case "Equipments"
+                        Dim eq As CharacterEquipment
+                        Set eq = New CharacterEquipment
+                        eq.CharacterID = CharacterID
+                        eq.ItemType = "Equipment"
+                        eq.Name = listRegion.Cells(rowIdx, 2).value
+                        eq.Quantity = listRegion.Cells(rowIdx, 3).value
+                        eq.Attuned = ReadBoolean(listRegion.Cells(rowIdx, 4).value)
+                        eq.Equiped = ReadBoolean(listRegion.Cells(rowIdx, 5).value)
+                        Character.CharacterEquipmentList.Add eq
+                End Select
+            End If
+        Next rowIdx
+    Next listName
+    
+    ' 4.��ȡSpellList/SpellSlots(�б�ͷ,������һ�к͵�һ��)
+    Dim spellNames As Collection, spellName As Variant
+    Set spellNames = GetNamesByRegionName("RegionSpellList")
+    For Each spellName In spellNames
+        Dim spellCell As Range, spellRegion As Range
+        Set spellCell = shGeneral.Range(spellName)
+        Set spellRegion = spellCell.CurrentRegion
+        For rowIdx = 2 To spellRegion.Rows.Count '������ͷ
+            hasData = False
+            For colIdx = 2 To spellRegion.Columns.Count
+                v = spellRegion.Cells(rowIdx, colIdx).value
+                If Not IsEmpty(v) And v <> "" Then hasData = True
+            Next colIdx
+            If hasData Then
+                Select Case spellName
+                    Case "SpellList"
+                        Dim sp As CharacterSpell
+                        Set sp = New CharacterSpell
+                        sp.CharacterID = CharacterID
+                        sp.SpellLevel = spellRegion.Cells(rowIdx, 2).value
+                        sp.Name = spellRegion.Cells(rowIdx, 3).value
+                        sp.Description = spellRegion.Cells(rowIdx, 4).value
+                        sp.Prepared = ReadBoolean(spellRegion.Cells(rowIdx, 5).value)
+                        Character.CharacterSpellList.Add sp
+                    Case "SpellSlots"
+                        Dim ss As CharacterSpellSlot
+                        Set ss = New CharacterSpellSlot
+                        ss.CharacterID = CharacterID
+                        ss.SpellLevel = spellRegion.Cells(rowIdx, 2).value
+                        ss.SlotsTotal = spellRegion.Cells(rowIdx, 3).value
+                        ss.SlotsExpended = spellRegion.Cells(rowIdx, 4).value
+                        Character.CharacterSpellSlots.Add ss
+                End Select
+            End If
+        Next rowIdx
+    Next spellName
+    
+    Set UIToCharacter = Character
 End Function

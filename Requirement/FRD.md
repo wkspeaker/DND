@@ -61,23 +61,41 @@ V1|2025/06/13|初版，基础文档
     - 针对每一个CharacterMaster对象,将其添加到数据字典Characters中,键为CharacterMaster.CharacterID,值就是CharacterMaster对象本身
     - 需要考虑到数据表中数据为空的情况.如果CharacterMasterList中没有数据则没有创建CharacterMaster对象.如果另外三张从表没有数据,则CharacterMaster相应的Collection中没有记录
 6. Public Sub WriteCharacters
-    在Terminate过程之前执行,或者在专门的Save命令中调用.用于将当前的Characters对象保存到相应表格中
-    - 首先将关联到的数据表的记录清空,比如shCharacterMaster.ListObject(1).DataBodyRange清空
-    - 针对数据字典Characters中的每一个项目,读取相应的CharacterMaster对象,将其中的各个Collection中的记录同样遍历,写入各个数据表中.
+    在Terminate过程之前执行,或者在专门的Save命令中调用。用于将当前的Characters对象保存到相应表格中。
+    - 首先将关联到的数据表的记录清空,包括：
+        - shCharacterMaster.ListObject(1)
+        - shCharacterMemo.ListObject(1)
+        - shCharacterAttackSpell.ListObject(1)
+        - shCharacterEquipment.ListObject(1)
+        - shCharacterSpell.ListObject(1)
+        - shCharacterSpellSlot.ListObject(1)
+    - 针对数据字典Characters中的每一个项目,读取相应的CharacterMaster对象,将其中的各个Collection中的记录同样遍历,写入各个数据表中。
         - Collection CharacterMemoList 写入 shCharacterMemo.ListObject(1)
-        - Collection CharacterAttackSpellList 写入shCharacterAttackSpell.ListObject(1)
-        - Collection CharacterEquipmentList 写入shCharacterEquipment.ListObject(1)
+        - Collection CharacterAttackSpellList 写入 shCharacterAttackSpell.ListObject(1)
+        - Collection CharacterEquipmentList 写入 shCharacterEquipment.ListObject(1)
+        - Collection CharacterSpellList 写入 shCharacterSpell.ListObject(1)
+        - Collection CharacterSpellSlots 写入 shCharacterSpellSlot.ListObject(1)
         - CharacterMaster对象本身的其他属性写入shCharacterMaster.ListObject(1)
+    - 字段映射与ReadCharacters过程完全对称，确保所有属性都能正确保存和还原。
 7. Public Sub CharacterToUI(ByVal CharacterID)
     在ReadCharacters过程执行以后运行该过程,用于将数据字典中的Character的各项数值写到shGeneral页面中的相应字段
     因此该过程运行的前提是已经将各个数据表的内容读取完毕,并且生成了各个Character的数据字典
     传入参数为CharacterID,从数据字典Characters中定位到对应的角色,然后写入shGeneral页面相应的位置:
-    - 目前该功能未完善,先处理类CharacterMaster中的各个成员,对于包含从表信息的各个Collection暂时不考虑,以后再追加
     - 对于类中除了Collection的各个成员,已经在shGeneral页面中定义了相应的名称, 将各个值写入就可以
         举例: Character.Strength = 6, 则通过shGeneral.Range("Strength") = Character.Strength来完成写入
         假设条件是类中的属性成员名字一定和shGeneral中的名称定义吻合
         需要考虑到两者有差异的情况. 如果发现有类中成员没有在shGeneral中找到对应名称的情况,弹出对话框显示"成员Strength没有找到对应名称,是否继续写入?", 是,否
         如果用户选择是,则忽略当前成员继续完成剩余部分的写入,如果选择否,则终止当前过程.
+    - 对于类中的Collection的各个成员, 应用以下逻辑:
+        - 如果是CharacterMemoList:
+            1. 针对CharacterMemoList的成员, 其每个成员都是具有CharacterID, MemoType和Contents的CharacterMemo对象.
+            2. 针对CharacterMemoList的每个成员, 将其MemoType的值作为TargetName,以及Contents作为Content传入过程WriteDataBlockByRange, 并依次将Contents的内容写入MemoType对应的名称所在区域的右侧单元格列中
+        - 遍历Character.CharacterAttackSpellList的成员, 
+            如果.ItemType = "Attack"则调用WriteAttacksByRange,传入当前的CharacterAttackSpellList成员(类型为CharacterAttackSpell)
+            如果.ItemType = "Spell"则调用WriteSpellsByRange,传入当前的CharacterAttackSpellList成员(类型为CharacterAttackSpell)
+        - 遍历Character.CharacterEquipmentList的成员,调用WriteEquipmentsByRange,传入当前的CharacterEquipmentList成员(类型为CharacterEquipment)
+        - 遍历Character.CharacterSpellList的成员,调用WriteSpellListByRange,传入当前的CharacterSpellList成员(类型为CharacterSpell)
+        - 遍历Character.CharacterSpellSlots的成员,调用WriteSpellSlotsByRange,传入当前的CharacterSpellSlots成员(类型为CharacterSpellSlot)
 8. Private Function GetPropertiesFromSchema(ByVal SchemaName As String) As Variant
     辅助函数,用于从schema表中获取属性列表
     - 参数SchemaName指定要读取的schema表名,例如"CharacterMasterSchema"
@@ -109,6 +127,131 @@ V1|2025/06/13|初版，基础文档
 13. Public Function GetCharacterIDFromCharacterIDName(ByVal CharacterIDName As String) As Long
     辅助函数，从类似"1 | 王思齐"的文本中提取"|"左边的内容并转为Long类型返回。
     用法示例：GetCharacterIDFromCharacterIDName("1 | 王思齐") 返回 1。
+14. Public Sub PrepDataBlockByRange(ByVal TargetName as String)
+    该过程用于清理shGeneral页面的数据输出区域.接受参数TargetName一定是一个名称,通过shGeneral.Range(TargetName).CurrentRegion来返回该名称以及其所在数据区域快. 然后:
+    - 如果该区域的列数(Range.Columns.Count)大于1, 则:
+    - 将该区域从第二列开始的内容清空. 
+    举例: 通过TargetName定位到Treasure名称所在的数据区域CurrentRegion为D5:G8, 在执行该过程后,保留D5:D8现有内容,而E5:G8的内容通过.clear的方式清空.
+15. Public Sub WriteDataBlockByRange(ByVal TargetName as string, ByVal Content as string)
+    该过程用于向shGeneral页面的区域写入内容.接受参数TargetName一定是一个名称,通过shGeneral.Range(TargetName)来返回该名称所在区域. 然后:
+    - 通过定位到的区域的.Offset(0,1)定位到其右侧相邻单元格,如果该单元格为空,则写入Content内容;
+    - 如果右侧相邻单元格不为空,则向下一格继续判断,为空则写入Content内容,不为空则继续向下执行.依次类推.
+16. Public Sub WriteAttacksByRange(ByRef Attack as CharacterAttackSpell)
+    辅助过程，将CharacterAttackSpell对象写入shGeneral页面的Attacks区域。
+    - 以TargetName = "Attacks"定位shGeneral.Range(TargetName)
+    - 从其右侧一列（.Offset(0,1)）开始，向下查找第一个空白单元格
+    - 依次写入：
+        - .Offset(0,1) = Attack.Name
+        - .Offset(0,2) = Attack.AtkBonus
+        - .Offset(0,3) = Attack.Damage_Type
+        - .Offset(0,4) = WriteBoolean(Attack.Equiped)
+        - .Offset(0,5) = WriteBoolean(Attack.Attuned)
+17. Public Sub WriteSpellsByRange(ByRef Spell as CharacterAttackSpell)
+    辅助过程，将CharacterAttackSpell对象写入shGeneral页面的Spells区域。
+    - 以TargetName = "Spells"定位shGeneral.Range(TargetName)
+    - 从其右侧一列（.Offset(0,1)）开始，向下查找第一个空白单元格
+    - 依次写入：
+        - .Offset(0,1) = Spell.Name
+        - .Offset(0,2) = Spell.AtkBonus
+        - .Offset(0,3) = Spell.Damage_Type
+        - .Offset(0,4) = Spell.SpellMemo
+18. Public Sub WriteEquipmentsByRange(ByRef Equipment as CharacterEquipment)
+    辅助过程，将CharacterEquipment对象写入shGeneral页面的Equipments区域。
+    - 以TargetName = "Equipments"定位shGeneral.Range(TargetName)
+    - 从其右侧一列（.Offset(0,1)）开始，向下查找第一个空白单元格
+    - 依次写入：
+        - .Offset(0,1) = Equipment.Name
+        - .Offset(0,2) = Equipment.Quantity
+        - .Offset(0,3) = WriteBoolean(Equipment.Attuned)
+        - .Offset(0,4) = WriteBoolean(Equipment.Equiped)
+19. Public Sub WriteSpellListByRange(ByRef Spell as CharacterSpell)
+    辅助过程，将CharacterSpell对象写入shGeneral页面的SpellList区域。
+    - 以TargetName = "SpellList"定位shGeneral.Range(TargetName)
+    - 从其右侧一列（.Offset(0,1)）开始，向下查找第一个空白单元格
+    - 依次写入：
+        - .Offset(0,1) = Spell.SpellLevel
+        - .Offset(0,2) = Spell.Name
+        - .Offset(0,3) = Spell.Description
+        - .Offset(0,4) = WriteBoolean(Spell.Prepared)
+20. Public Sub WriteSpellSlotsByRange(ByRef SpellSlot as CharacterSpellSlot)
+    辅助过程，将CharacterSpellSlot对象写入shGeneral页面的SpellSlots区域。
+    - 以TargetName = "SpellSlots"定位shGeneral.Range(TargetName)
+    - 从其右侧一列（.Offset(0,1)）开始，向下查找第一个空白单元格
+    - 依次写入：
+        - .Offset(0,1) = SpellSlot.SpellLevel
+        - .Offset(0,2) = SpellSlot.SlotsTotal
+        - .Offset(0,3) = SpellSlot.SlotsExpended
+
+### 新增辅助函数与过程
+
+#### 判断单元格是否有名称
+```vba
+Public Function HasCellName(cell As Range) As Boolean
+    On Error Resume Next
+    Dim n As String
+    n = cell.Name.NameLocal
+    HasCellName = (Err.Number = 0)
+    On Error GoTo 0
+End Function
+```
+
+#### 批量清理数据块的主过程
+```vba
+Public Sub PrepDataBlocksBetweenNames(ByVal StartName As String, Optional HasHeadLine As Boolean = False)
+    Dim startCell As Range
+    ' 1. 定位起始单元格
+    On Error Resume Next
+    Set startCell = shGeneral.Range(StartName)
+    On Error GoTo 0
+    If startCell Is Nothing Then
+        MsgBox "Named range '" & StartName & "' not found.", vbExclamation, "Error"
+        Exit Sub
+    End If
+
+    Dim startRow As Long
+    startRow = startCell.Row
+    Dim col As Long
+    col = startCell.Column
+
+    ' 2. 向下查找下一个有名称的单元格，最多查找100行
+    Dim endRow As Long
+    Dim i As Long
+    endRow = startRow + 100
+    For i = startRow + 1 To startRow + 100
+        If i > shGeneral.Rows.Count Then Exit For
+        If HasCellName(shGeneral.Cells(i, col)) Then
+            If shGeneral.Cells(i, col).Name.NameLocal <> shGeneral.Cells(i, col).Address(False, False, xlA1, True) Then
+                endRow = i
+                Exit For
+            End If
+        End If
+    Next i
+    If endRow > shGeneral.Rows.Count Then endRow = shGeneral.Rows.Count
+
+    ' 3. 获取区域（开始行+1 到 结束行-1）
+    Dim regionStart As Long, regionEnd As Long
+    regionStart = startRow + 1
+    regionEnd = endRow - 1
+    If regionStart > regionEnd Then Exit Sub ' 区域无效
+
+    ' 只遍历已用区域的列
+    Dim usedColCount As Long
+    usedColCount = shGeneral.UsedRange.Columns.Count
+    Dim r As Long, c As Long
+    For r = regionStart To regionEnd
+        For c = 1 To usedColCount
+            Dim cell As Range
+            Set cell = shGeneral.Cells(r, c)
+            If HasCellName(cell) Then
+                If cell.Name.NameLocal <> cell.Address(False, False, xlA1, True) Then
+                    Call PrepDataBlockByRange(cell.Name.NameLocal)
+                End If
+            End If
+        Next c
+    Next r
+End Sub
+```
+
 ### 技术细节
 1. 主要内容都在本项目的.\CharacterManagementTool.xlsb文件中维护,包括表格,数据,代码.本文档以后都称这个文件为"Excel文件".
 2. 在VBA窗口中将一些页面的CodeName改名,方便在VBA中直接作为WorkSheet对象调用. 具体列表参考后续的[[# Excel文件页面列表]]
@@ -527,3 +670,56 @@ Key features:
         4. 使用 Application.EnableEvents 控制事件触发,防止循环调用
         5. 如果监听多个命名单元格,可以使用 Union 函数组合多个 Range
         6. 建议在事件处理代码中添加错误处理,确保 Application.EnableEvents 被正确恢复
+```
+
+## 新增过程
+
+### Public Sub SaveCurrentCharacter
+
+该过程用于将当前 shGeneral 页面上的角色信息保存到数据表：
+
+```vba
+Public Sub SaveCurrentCharacter()
+    ' Initialize objects and read data
+    Initialize
+    ReadCharacters
+    
+    ' Get CharacterID from shGeneral
+    Dim CharacterID As Variant
+    CharacterID = shGeneral.Range("CharacterID").Value
+    
+    ' Ensure CharacterID is numeric and not empty
+    If IsNumeric(CharacterID) And Not IsEmpty(CharacterID) Then
+        Dim CharacterIDLong As Long
+        CharacterIDLong = CLng(CharacterID)
+        
+        ' Read character from UI
+        Dim newCharacter As CharacterMaster
+        Set newCharacter = UIToCharacter(CharacterIDLong)
+        
+        ' Update or add to Characters dictionary
+        If Characters.Exists(CharacterIDLong) Then
+            Set Characters(CharacterIDLong) = newCharacter
+        Else
+            Characters.Add CharacterIDLong, newCharacter
+        End If
+    Else
+        MsgBox "Invalid CharacterID in shGeneral!", vbExclamation, "Error"
+        Terminate
+        Exit Sub
+    End If
+    
+    ' Write all characters to sheets
+    WriteCharacters
+    
+    ' Terminate to clean up objects
+    Terminate
+End Sub
+```
+
+**说明：**
+- 先初始化并读取所有数据。
+- 读取 shGeneral 页的 CharacterID。
+- 调用 UIToCharacter 读取当前 UI 上的角色信息。
+- 如果字典中已存在该角色，则替换，否则新增。
+- 最后写回所有角色并清理对象。

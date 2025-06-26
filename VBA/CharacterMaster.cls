@@ -103,11 +103,17 @@ Private mWeight As String
 Private mEyes As String
 Private mSkin As String
 Private mHair As String
+Private mSpellCastingClass As String
+Private mSpellCastingAbility As String
+Private mSpellSaveDC As Integer
+Private mSpellAttackBonus As Integer
 
 ' Collections for related objects
 Private mCharacterMemoList As Collection
 Private mCharacterAttackSpellList As Collection
-Private mpCharacterEquipmentList As Collection
+Private mCharacterEquipmentList As Collection
+Private mCharacterSpellList As Collection
+Private mCharacterSpellSlots As Collection
 
 ' Properties
 Public Property Get CharacterID() As Long
@@ -854,6 +860,38 @@ Public Property Let Hair(ByVal value As String)
     mHair = value
 End Property
 
+Public Property Get SpellCastingClass() As String
+    SpellCastingClass = mSpellCastingClass
+End Property
+
+Public Property Let SpellCastingClass(ByVal value As String)
+    mSpellCastingClass = value
+End Property
+
+Public Property Get SpellCastingAbility() As String
+    SpellCastingAbility = mSpellCastingAbility
+End Property
+
+Public Property Let SpellCastingAbility(ByVal value As String)
+    mSpellCastingAbility = value
+End Property
+
+Public Property Get SpellSaveDC() As Integer
+    SpellSaveDC = mSpellSaveDC
+End Property
+
+Public Property Let SpellSaveDC(ByVal value As Integer)
+    mSpellSaveDC = value
+End Property
+
+Public Property Get SpellAttackBonus() As Integer
+    SpellAttackBonus = mSpellAttackBonus
+End Property
+
+Public Property Let SpellAttackBonus(ByVal value As Integer)
+    mSpellAttackBonus = value
+End Property
+
 ' Collection Properties
 Public Property Get CharacterMemoList() As Collection
     Set CharacterMemoList = mCharacterMemoList
@@ -871,24 +909,45 @@ Public Property Set CharacterAttackSpellList(ByVal value As Collection)
     Set mCharacterAttackSpellList = value
 End Property
 
-Public Property Get pCharacterEquipmentList() As Collection
-    Set pCharacterEquipmentList = mpCharacterEquipmentList
+Public Property Get CharacterEquipmentList() As Collection
+    Set CharacterEquipmentList = mCharacterEquipmentList
 End Property
 
-Public Property Set pCharacterEquipmentList(ByVal value As Collection)
-    Set mpCharacterEquipmentList = value
+Public Property Set CharacterEquipmentList(ByVal value As Collection)
+    Set mCharacterEquipmentList = value
+End Property
+
+Public Property Get CharacterSpellList() As Collection
+    Set CharacterSpellList = mCharacterSpellList
+End Property
+
+Public Property Set CharacterSpellList(ByVal value As Collection)
+    Set mCharacterSpellList = value
+End Property
+
+Public Property Get CharacterSpellSlots() As Collection
+    Set CharacterSpellSlots = mCharacterSpellSlots
+End Property
+
+Public Property Set CharacterSpellSlots(ByVal value As Collection)
+    Set mCharacterSpellSlots = value
 End Property
 
 Private Sub Class_Initialize()
     ' Initialize collections
     Set mCharacterMemoList = New Collection
     Set mCharacterAttackSpellList = New Collection
-    Set mpCharacterEquipmentList = New Collection
+    Set mCharacterEquipmentList = New Collection
+    Set mCharacterSpellList = New Collection
+    Set mCharacterSpellSlots = New Collection
 End Sub
 
 Private Sub Class_Terminate()
     ' Clean up collections
     Set mCharacterMemoList = Nothing
     Set mCharacterAttackSpellList = Nothing
-    Set mpCharacterEquipmentList = Nothing
-End Sub 
+    Set mCharacterEquipmentList = Nothing
+    Set mCharacterSpellList = Nothing
+    Set mCharacterSpellSlots = Nothing
+End Sub
+
