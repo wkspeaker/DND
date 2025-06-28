@@ -335,6 +335,13 @@ Public Sub ReadCharacters()
     End If
 End Sub
 
+' 辅助函数：删除表格中的所有数据行
+Private Sub ClearTableRows(TableObj As ListObject)
+    Do While TableObj.ListRows.Count > 0
+        TableObj.ListRows(1).Delete
+    Loop
+End Sub
+
 Public Sub WriteCharacters()
     Dim charMaster As CharacterMaster
     Dim charMemo As CharacterMemo
@@ -347,19 +354,21 @@ Public Sub WriteCharacters()
     Dim masterRowIndex As Long
     Dim tmpRowIndex As Long
     
-    ' Clear all related tables
-    shCharacterMaster.ListObjects(1).DataBodyRange.Clear
-    shCharacterMemo.ListObjects(1).DataBodyRange.Clear
-    shCharacterAttackSpell.ListObjects(1).DataBodyRange.Clear
-    shCharacterEquipment.ListObjects(1).DataBodyRange.Clear
-    shCharacterSpell.ListObjects(1).DataBodyRange.Clear
-    shCharacterSpellSlot.ListObjects(1).DataBodyRange.Clear
-    
+    ' 清空所有相关表格
+    Call ClearTableRows(shCharacterMaster.ListObjects(1))
+    Call ClearTableRows(shCharacterMemo.ListObjects(1))
+    Call ClearTableRows(shCharacterAttackSpell.ListObjects(1))
+    Call ClearTableRows(shCharacterEquipment.ListObjects(1))
+    Call ClearTableRows(shCharacterSpell.ListObjects(1))
+    Call ClearTableRows(shCharacterSpellSlot.ListObjects(1))
+
     ' Initialize master row index
     masterRowIndex = 1
     
     ' Write CharacterMaster data and its related data
-    For Each charMaster In Characters.Items
+    Dim key As Variant
+    For Each key In Characters.Keys
+        Set charMaster = Characters(key)
         ' Write CharacterMaster data
         With shCharacterMaster.ListObjects(1)
             .ListRows.Add
@@ -472,7 +481,7 @@ Public Sub WriteCharacters()
         Next charSpellSlot
 
         masterRowIndex = masterRowIndex + 1
-    Next charMaster
+    Next key
 End Sub
 
 Public Sub CharacterToUI(ByVal CharacterID As Long)
@@ -487,7 +496,8 @@ Public Sub CharacterToUI(ByVal CharacterID As Long)
     Set Character = Characters(CharacterID)
     
     ' Get all properties from CharacterMaster class
-    Dim Prop As Variant
+    Dim Prop As String
+    Dim PropType As String
     Dim PropValue As Variant
     Dim RangeExists As Boolean
     Dim Response As VbMsgBoxResult
@@ -495,39 +505,35 @@ Public Sub CharacterToUI(ByVal CharacterID As Long)
     ' Get properties from CharacterMasterSchema table
     Dim Properties As Variant
     Properties = GetPropertiesFromSchema("CharacterMasterSchema")
-    
-    For Each Prop In Properties
-        ' Skip Collection type properties
+    Dim i As Long
+    For i = 1 To UBound(Properties, 1)
+        Prop = Properties(i, 1)      ' 字段名
+        PropType = LCase(Trim(Properties(i, 2)))  ' 类型
+        On Error Resume Next
         PropValue = CallByName(Character, Prop, VbGet)
-        'If TypeName(PropValue) = PROP_TYPE_COLLECTION Then
-            '�����˲����߼�
-        'Else
-            ' Check if named range exists in shGeneral
-            On Error Resume Next
-            RangeExists = Not shGeneral.Range(Prop) Is Nothing
-            On Error GoTo 0
-            
-            If Not RangeExists Then
-                ' Ask user if should continue
-                Response = MsgBox("Member " & Prop & " not found in UI. Continue writing other members?", _
-                                vbQuestion + vbYesNo, "Missing Member")
-                
-                If Response = vbNo Then
-                    Exit Sub
-                End If
-            Else
-                ' Write property value to UI
-                If VarType(PropValue) = vbBoolean Then
-                    shGeneral.Range(Prop) = WriteBoolean(PropValue)
-                Else
-                    shGeneral.Range(Prop) = PropValue
-                End If
+        On Error GoTo 0
+        ' Check if named range exists in shGeneral
+        On Error Resume Next
+        RangeExists = Not shGeneral.Range(Prop) Is Nothing
+        On Error GoTo 0
+        If Not RangeExists Then
+            ' Ask user if should continue
+            Response = MsgBox("Member " & Prop & " not found in UI. Continue writing other members?", _
+                            vbQuestion + vbYesNo, "Missing Member")
+            If Response = vbNo Then
+                Exit Sub
             End If
-        'End If
-    Next Prop
+        Else
+            ' Write property value to UI
+            If PropType = "bool" Or PropType = "boolean" Then
+                shGeneral.Range(Prop) = WriteBoolean(PropValue)
+            Else
+                shGeneral.Range(Prop) = PropValue
+            End If
+        End If
+    Next i
     
-    
-    '���CharacterMemoList�Ĵ���
+    ' 处理CharacterMemoList
     If Not Character.CharacterMemoList Is Nothing Then
         If Character.CharacterMemoList.Count > 0 Then
             Dim charMemo As CharacterMemo
@@ -536,8 +542,7 @@ Public Sub CharacterToUI(ByVal CharacterID As Long)
             Next charMemo
         End If
     End If
-    
-    '����CharacterAttackSpellList
+    ' 处理CharacterAttackSpellList
     If Not Character.CharacterAttackSpellList Is Nothing Then
         Dim charAttackSpell As CharacterAttackSpell
         For Each charAttackSpell In Character.CharacterAttackSpellList
@@ -548,24 +553,21 @@ Public Sub CharacterToUI(ByVal CharacterID As Long)
             End If
         Next charAttackSpell
     End If
-    
-    '����CharacterEquipmentList
+    ' 处理CharacterEquipmentList
     If Not Character.CharacterEquipmentList Is Nothing Then
         Dim charEquipment As CharacterEquipment
         For Each charEquipment In Character.CharacterEquipmentList
             Call WriteEquipmentsByRange(charEquipment)
         Next charEquipment
     End If
-    
-    '����CharacterSpellList
+    ' 处理CharacterSpellList
     If Not Character.CharacterSpellList Is Nothing Then
         Dim charSpell As CharacterSpell
         For Each charSpell In Character.CharacterSpellList
             Call WriteSpellListByRange(charSpell)
         Next charSpell
     End If
-    
-    '����CharacterSpellSlots
+    ' 处理CharacterSpellSlots
     If Not Character.CharacterSpellSlots Is Nothing Then
         Dim charSpellSlot As CharacterSpellSlot
         For Each charSpellSlot In Character.CharacterSpellSlots
@@ -585,8 +587,8 @@ Private Function GetPropertiesFromSchema(ByVal SchemaName As String) As Variant
     
     ' Get the field names and types from the schema
     Dim FieldRange As Range, TypeRange As Range
-    Set FieldRange = SchemaTable.ListColumns("�ֶ�").DataBodyRange
-    Set TypeRange = SchemaTable.ListColumns("����").DataBodyRange
+    Set FieldRange = SchemaTable.ListColumns("字段").DataBodyRange
+    Set TypeRange = SchemaTable.ListColumns("类型").DataBodyRange
     
     Dim i As Long
     For i = 1 To FieldRange.Rows.Count
@@ -613,17 +615,17 @@ Public Function GetMaxCharacterId() As Long
     Dim MaxId As Long
     MaxId = 0
     
-    Dim Key As Variant
-    For Each Key In Characters.Keys
-        If CLng(Key) > MaxId Then
-            MaxId = CLng(Key)
+    Dim key As Variant
+    For Each key In Characters.Keys
+        If CLng(key) > MaxId Then
+            MaxId = CLng(key)
         End If
-    Next Key
+    Next key
     
     GetMaxCharacterId = MaxId
 End Function
 
-' ��Excel��Ԫ����ַ���ת��ΪBoolean
+' 将Excel单元格地址转换为Boolean
 Public Function ReadBoolean(ByVal value As Variant) As Boolean
     Dim s As String
     s = UCase(Trim(CStr(value)))
@@ -633,11 +635,11 @@ Public Function ReadBoolean(ByVal value As Variant) As Boolean
         Case "N", "NO", ""
             ReadBoolean = False
         Case Else
-            ReadBoolean = False ' �����׳��쳣/����
+            ReadBoolean = False ' 返回异常/错误
     End Select
 End Function
 
-' ��Booleanֵת��ΪExcel�õ��ַ���
+' 将Boolean值转换为Excel可用的字符串
 Public Function WriteBoolean(ByVal value As Boolean) As String
     If value Then
         WriteBoolean = "Y"
@@ -646,7 +648,7 @@ Public Function WriteBoolean(ByVal value As Boolean) As String
     End If
 End Function
 
-'��CharacterIDName�ж�ȡCharacterID
+'根据CharacterIDName获取CharacterID
 Public Function GetCharacterIDFromCharacterIDName(ByVal CharacterIDName As String) As Long
     Dim pos As Long
     pos = InStr(CharacterIDName, "|")
@@ -657,7 +659,7 @@ Public Function GetCharacterIDFromCharacterIDName(ByVal CharacterIDName As Strin
     End If
 End Function
 
-'�����µ�Character����,CharacterIDȡ���ֵ��1, ������CharacterIDֵ
+'新增Character，CharacterID取最大值加1，返回新增的CharacterID
 Public Function AddNewCharacter() As Long
     Dim NewCharacterId As Long
     
@@ -676,7 +678,7 @@ Public Function AddNewCharacter() As Long
     AddNewCharacter = NewCharacterId
 End Function
 
-'��������:��ָ���й��������ᴰ���·�
+'滚动到shGeneral页指定区域的第二行中间
 Public Sub ScrollToRow(ByVal TargetRegion As String)
     Dim freezeRow As Long
     Dim targetRow As Long
@@ -684,18 +686,18 @@ Public Sub ScrollToRow(ByVal TargetRegion As String)
     targetRow = shGeneral.Range(TargetRegion).Row
     freezeRow = ActiveWindow.SplitRow
     If freezeRow < 1 Then freezeRow = 0
-    'ѡ��Ŀ�굥Ԫ��
+    '选择目标单元格
     shGeneral.Cells(targetRow, 1).Select
-    '����,ʹĿ������ʾ�ڶ������·�
+    '滚动，使目标单元格显示在第二行中间
     ActiveWindow.ScrollRow = targetRow
 End Sub
 
-'����shGeneralҳ��ָ����������ĵڶ��м��Ժ�����
+'在shGeneral页指定区域预处理数据块
 Public Sub PrepDataBlockByRange(ByVal TargetName As String, Optional HasHeadLine As Boolean = False)
     Dim rng As Range
     Dim colCount As Long
     
-    '��λ�����������CurrentRegion
+    '定位当前区域CurrentRegion
     On Error Resume Next
     Set rng = shGeneral.Range(TargetName).CurrentRegion
     On Error GoTo 0
@@ -707,7 +709,7 @@ Public Sub PrepDataBlockByRange(ByVal TargetName As String, Optional HasHeadLine
     
     colCount = rng.Columns.Count
     If colCount > 1 Then
-        '����HasHeadLine�����������,��մӵڶ��п�ʼ������
+        '如果HasHeadLine为True，则清除从第二行开始的数据
         If HasHeadLine Then
             rng.Offset(1, 1).Resize(rng.Rows.Count - 1, colCount - 1).ClearContents
         Else
@@ -716,7 +718,7 @@ Public Sub PrepDataBlockByRange(ByVal TargetName As String, Optional HasHeadLine
     End If
 End Sub
 
-'��shGeneralҳ��ָ�����������Ҳ���������д������
+'在shGeneral页指定区域写入数据块
 Public Sub WriteDataBlockByRange(ByVal TargetName As String, ByVal content As String)
     Dim targetCell As Range
     Dim writeCell As Range
@@ -731,7 +733,7 @@ Public Sub WriteDataBlockByRange(ByVal TargetName As String, ByVal content As St
         Exit Sub
     End If
     
-    '���Ҳ����ڵ�Ԫ��ʼ,���²��ҿյ�Ԫ��
+    '从末尾空单元格开始,写入下空单元格
     i = 0
     Do
         Set writeCell = targetCell.Offset(i, 1)
@@ -740,13 +742,13 @@ Public Sub WriteDataBlockByRange(ByVal TargetName As String, ByVal content As St
             Exit Sub
         End If
         i = i + 1
-        '��ֹ��ѭ��,������50��
+        '终止循环,最多写入50行
         If i > 50 Then Exit Do
     Loop
-    '���û�п�λ,��д��
+    '如果没有空单元格,则写入
 End Sub
 
-'д��������Ϣ��shGeneralҳ��
+'写入攻击信息到shGeneral页
 Public Sub WriteAttacksByRange(ByRef Attack As CharacterAttackSpell)
     Const TargetName As String = "Attacks"
     Dim targetCell As Range, writeCell As Range
@@ -774,7 +776,7 @@ Public Sub WriteAttacksByRange(ByRef Attack As CharacterAttackSpell)
     Loop
 End Sub
 
-'д�뷨����Ϣ��shGeneralҳ��
+'写入法术信息到shGeneral页
 Public Sub WriteSpellsByRange(ByRef Spell As CharacterAttackSpell)
     Const TargetName As String = "Spells"
     Dim targetCell As Range, writeCell As Range
@@ -801,7 +803,7 @@ Public Sub WriteSpellsByRange(ByRef Spell As CharacterAttackSpell)
     Loop
 End Sub
 
-'д��װ����Ϣ��shGeneralҳ��
+'写入装备信息到shGeneral页
 Public Sub WriteEquipmentsByRange(ByRef Equipment As CharacterEquipment)
     Const TargetName As String = "Equipments"
     Dim targetCell As Range, writeCell As Range
@@ -828,7 +830,7 @@ Public Sub WriteEquipmentsByRange(ByRef Equipment As CharacterEquipment)
     Loop
 End Sub
 
-'д�뷨���б���shGeneralҳ��
+'写入法术列表到shGeneral页
 Public Sub WriteSpellListByRange(ByRef Spell As CharacterSpell)
     Const TargetName As String = "SpellList"
     Dim targetCell As Range, writeCell As Range
@@ -855,7 +857,7 @@ Public Sub WriteSpellListByRange(ByRef Spell As CharacterSpell)
     Loop
 End Sub
 
-'д�뷨��λ��shGeneralҳ��
+'写入法术位置到shGeneral页
 Public Sub WriteSpellSlotsByRange(ByRef SpellSlot As CharacterSpellSlot)
     Const TargetName As String = "SpellSlots"
     Dim targetCell As Range, writeCell As Range
@@ -882,10 +884,10 @@ Public Sub WriteSpellSlotsByRange(ByRef SpellSlot As CharacterSpellSlot)
 End Sub
 
 
-'�����������������ݿ�
+'预处理数据块
 Public Sub PrepDataBlocksBetweenNames(ByVal StartName As String, Optional HasHeadLine As Boolean = False)
     Dim startCell As Range
-    ' 1.������ʵ��Ԫ��
+    ' 1.定位实际单元格
     On Error Resume Next
     Set startCell = shGeneral.Range(StartName)
     On Error GoTo 0
@@ -899,7 +901,7 @@ Public Sub PrepDataBlocksBetweenNames(ByVal StartName As String, Optional HasHea
     Dim col As Long
     col = startCell.Column
 
-    ' 2.���²�����һ�������Ƶĵ�Ԫ��,������100��
+    ' 2.查找下一行连续的单元格,最多100行
     Dim endRow As Long
     Dim i As Long
     endRow = startRow + 100
@@ -914,13 +916,13 @@ Public Sub PrepDataBlocksBetweenNames(ByVal StartName As String, Optional HasHea
     Next i
     If endRow > shGeneral.Rows.Count Then endRow = shGeneral.Rows.Count
 
-    ' 3.��ȡ����(��ʼ��+1 �� ������-1)
+    ' 3.获取区域(开始行+1 到 结束行-1)
     Dim regionStart As Long, regionEnd As Long
     regionStart = startRow + 1
     regionEnd = endRow - 1
-    If regionStart > regionEnd Then Exit Sub '������Ч
+    If regionStart > regionEnd Then Exit Sub '无效
 
-    'ֻ���������������
+    '只处理连续的单元格
     Dim usedColCount As Long
     usedColCount = shGeneral.UsedRange.Columns.Count
     Dim r As Long, c As Long
@@ -946,7 +948,7 @@ Function HasCellName(cell As Range) As Boolean
 End Function
 
 
-'��ȡָ������������������Ԫ��������б�
+'获取指定区域的所有单元格名称
 Public Function GetNamesByRegionName(ByVal TargetName As String) As Collection
     Dim startCell As Range
     Dim startRow As Long, endRow As Long, col As Long, i As Long
@@ -995,7 +997,7 @@ End Function
 
 
 
-'��shGeneral��ȡ���ݵ�Character����
+'从shGeneral获取数据到Character
 Public Function UIToCharacter(ByVal CharacterID As Long) As CharacterMaster
     Dim Character As New CharacterMaster
     Dim Properties As Variant
@@ -1003,7 +1005,7 @@ Public Function UIToCharacter(ByVal CharacterID As Long) As CharacterMaster
     Dim i As Long
     Dim Prop As String, PropType As String
     
-    ' 1.��ȡ������
+    ' 1.获取属性
     Properties = GetPropertiesFromSchema("CharacterMasterSchema")
     For i = 1 To UBound(Properties, 1)
         Prop = Properties(i, 1)
@@ -1019,7 +1021,7 @@ Public Function UIToCharacter(ByVal CharacterID As Long) As CharacterMaster
     Next i
     Character.CharacterID = CharacterID
     
-    ' 2.��ȡCharacterMemoList(�ޱ�ͷ,��������һ��)
+    ' 2.获取CharacterMemoList(备注头,可以多行)
     Dim memoNames As Collection, memoName As Variant
     Set memoNames = GetNamesByRegionName("RegionMemo")
     For Each memoName In memoNames
@@ -1049,14 +1051,14 @@ Public Function UIToCharacter(ByVal CharacterID As Long) As CharacterMaster
         Next rowIdx
     Next memoName
     
-    ' 3.��ȡAttacks/Spells/Equipments(�б�ͷ,������һ�к͵�һ��)
+    ' 3.获取Attacks/Spells/Equipments(备注头,第一行和第一列)
     Dim listNames As Collection, listName As Variant
     Set listNames = GetNamesByRegionName("RegionList")
     For Each listName In listNames
         Dim listCell As Range, listRegion As Range
         Set listCell = shGeneral.Range(listName)
         Set listRegion = listCell.CurrentRegion
-        For rowIdx = 2 To listRegion.Rows.Count '������ͷ
+        For rowIdx = 2 To listRegion.Rows.Count '去掉头
             hasData = False
             For colIdx = 2 To listRegion.Columns.Count
                 v = listRegion.Cells(rowIdx, colIdx).value
@@ -1100,14 +1102,14 @@ Public Function UIToCharacter(ByVal CharacterID As Long) As CharacterMaster
         Next rowIdx
     Next listName
     
-    ' 4.��ȡSpellList/SpellSlots(�б�ͷ,������һ�к͵�һ��)
+    ' 4.获取SpellList/SpellSlots(备注头,第一行和第一列)
     Dim spellNames As Collection, spellName As Variant
     Set spellNames = GetNamesByRegionName("RegionSpellList")
     For Each spellName In spellNames
         Dim spellCell As Range, spellRegion As Range
         Set spellCell = shGeneral.Range(spellName)
         Set spellRegion = spellCell.CurrentRegion
-        For rowIdx = 2 To spellRegion.Rows.Count '������ͷ
+        For rowIdx = 2 To spellRegion.Rows.Count '去掉头
             hasData = False
             For colIdx = 2 To spellRegion.Columns.Count
                 v = spellRegion.Cells(rowIdx, colIdx).value
@@ -1138,4 +1140,225 @@ Public Function UIToCharacter(ByVal CharacterID As Long) As CharacterMaster
     Next spellName
     
     Set UIToCharacter = Character
+End Function
+
+Public Sub TestFillWordContentControl()
+    Dim wordApp As Word.Application
+    Dim wordDoc As Word.Document
+    Dim fso As Object
+    Dim srcPath As String, newPath As String, fileName As String, fileExt As String
+    Dim dateStr As String
+    Dim docFolder As String
+    Dim cc As Word.ContentControl
+    
+    ' 1. 读取Word文件名
+    fileName = shGeneral.Range("CharacterSheet_SpellList").Value
+    If fileName = "" Then
+        MsgBox "未指定Word文件名！", vbExclamation
+        Exit Sub
+    End If
+    
+    ' 2. 构造完整路径
+    docFolder = ThisWorkbook.Path & "\Documents\"
+    If Right(docFolder, 1) <> "\" Then docFolder = docFolder & "\"
+    srcPath = docFolder & fileName
+    
+    If Dir(srcPath) = "" Then
+        MsgBox "找不到模板文件：" & srcPath, vbExclamation
+        Exit Sub
+    End If
+    
+    ' 3. 复制为新文件（加日期）
+    fileExt = Mid(fileName, InStrRev(fileName, "."))
+    dateStr = Format(Now, "yyyymmdd_HHMMSS")
+    newPath = docFolder & Left(fileName, InStrRev(fileName, ".") - 1) & "_" & dateStr & fileExt
+    Set fso = CreateObject("Scripting.FileSystemObject")
+    fso.CopyFile srcPath, newPath, True
+    
+    ' 4. 打开新文件
+    Set wordApp = CreateObject("Word.Application")
+    wordApp.Visible = True ' 调试时可见
+    Set wordDoc = wordApp.Documents.Open(newPath)
+    
+    ' 5. 填充内容控件
+    For Each cc In wordDoc.ContentControls
+        If cc.Tag = "CharacterName" Then
+            cc.Range.Text = "测试内容"
+        End If
+    Next
+    
+    ' 6. 保存并关闭
+    wordDoc.Save
+    wordDoc.Close
+    wordApp.Quit
+    
+    Set wordDoc = Nothing
+    Set wordApp = Nothing
+    Set fso = Nothing
+    
+    MsgBox "测试完成，新文件已生成：" & newPath, vbInformation
+End Sub
+
+Public Sub TestFillWordContentControlFromTemplate()
+    Dim wordApp As Object
+    Dim wordDoc As Object
+    Dim templatePath As String, fileName As String
+    Dim docFolder As String
+    Dim cc As Object
+    Dim shp As Object
+
+    ' 1. 读取Word文件名
+    fileName = shGeneral.Range("CharacterSheet_SpellList").Value
+    If fileName = "" Then
+        MsgBox "未指定Word文件名！", vbExclamation
+        Exit Sub
+    End If
+
+    ' 2. 构造完整路径
+    docFolder = ThisWorkbook.Path & "\Documents\"
+    If Right(docFolder, 1) <> "\" Then docFolder = docFolder & "\"
+    templatePath = docFolder & fileName
+
+    If Dir(templatePath) = "" Then
+        MsgBox "找不到模板文件：" & templatePath, vbExclamation
+        Exit Sub
+    End If
+
+    ' 3. 用模板新建文档
+    Set wordApp = CreateObject("Word.Application")
+    wordApp.Visible = True
+    Set wordDoc = wordApp.Documents.Add(Template:=templatePath, NewTemplate:=False)
+
+    ' 4. 填充内容控件（正文）
+    For Each cc In wordDoc.ContentControls
+        If cc.Tag = "CharacterName" Then
+            cc.Range.Text = "测试内容"
+        End If
+    Next
+    ' 4b. 填充内容控件（文本框等Shape中）
+    For Each shp In wordDoc.Shapes
+        If shp.Type = 17 Then ' msoTextBox = 17
+            For Each cc In shp.TextFrame.TextRange.ContentControls
+                If cc.Tag = "CharacterName" Then
+                    cc.Range.Text = "测试内容"
+                End If
+            Next
+        End If
+    Next
+
+    ' 5. 不保存也不关闭文档，保持Word窗口打开
+    ' 6. 释放对象
+    Set wordDoc = Nothing
+    Set wordApp = Nothing
+End Sub
+
+Public Function CreateWordFromTemplate(ByVal TemplateName As String) As Object
+    Dim wordApp As Object
+    Dim wordDoc As Object
+    Dim templatePath As String, fileName As String
+    Dim docFolder As String
+    
+    ' 1. 读取Word文件名（从shNote或Worksheets("Note")）
+    On Error Resume Next
+    fileName = shNote.Range(TemplateName).Value
+    If fileName = "" Then
+        fileName = Worksheets("Note").Range(TemplateName).Value
+    End If
+    On Error GoTo 0
+    If fileName = "" Then
+        MsgBox "未指定Word文件名！", vbExclamation
+        Set CreateWordFromTemplate = Nothing
+        Exit Function
+    End If
+    
+    ' 2. 构造完整路径
+    docFolder = ThisWorkbook.Path & "\Documents\"
+    If Right(docFolder, 1) <> "\" Then docFolder = docFolder & "\"
+    templatePath = docFolder & fileName
+    
+    If Dir(templatePath) = "" Then
+        MsgBox "找不到模板文件：" & templatePath, vbExclamation
+        Set CreateWordFromTemplate = Nothing
+        Exit Function
+    End If
+    
+    ' 3. 用模板新建文档
+    Set wordApp = CreateObject("Word.Application")
+    wordApp.Visible = True
+    Set wordDoc = wordApp.Documents.Add(Template:=templatePath, NewTemplate:=False)
+    
+    ' 4. 返回文档对象
+    Set CreateWordFromTemplate = wordDoc
+End Function
+
+Public Sub PrintToWord(ByRef TargetDoc As Object, ByVal TargetTag As String, ByVal ContentText As String)
+    Dim cc As Object
+    Dim shp As Object
+    ' 1. 正文中的ContentControl
+    For Each cc In TargetDoc.ContentControls
+        If cc.Tag = TargetTag Then
+            cc.Range.Text = ContentText
+        End If
+    Next
+    ' 2. Shapes（如文本框）中的ContentControl
+    For Each shp In TargetDoc.Shapes
+        If shp.Type = 17 Then ' msoTextBox = 17
+            For Each cc In shp.TextFrame.TextRange.ContentControls
+                If cc.Tag = TargetTag Then
+                    cc.Range.Text = ContentText
+                End If
+            Next
+        End If
+    Next
+End Sub
+
+Public Sub ExportCharacter()
+    Dim CharacterID As Variant
+    Dim Character As CharacterMaster
+    Dim wordDoc As Object
+    
+    ' 1. 获取当前角色ID
+    CharacterID = shGeneral.Range("CharacterID").Value
+    If Not IsNumeric(CharacterID) Or IsEmpty(CharacterID) Then
+        MsgBox "无效的角色ID！", vbExclamation
+        Exit Sub
+    End If
+    
+    ' 2. 获取当前角色对象
+    Set Character = UIToCharacter(CLng(CharacterID))
+    If Character Is Nothing Then
+        MsgBox "未能获取角色对象！", vbExclamation
+        Exit Sub
+    End If
+    
+    ' 3. 创建Word文档（模板名可根据实际情况调整）
+    Set wordDoc = CreateWordFromTemplate("CharacterSheet")
+    If wordDoc Is Nothing Then
+        MsgBox "Word文档创建失败！", vbExclamation
+        Exit Sub
+    End If
+    
+    ' 4. 写入角色名到Word文档Tag为"Character"的ContentControl
+    Call PrintToWord(wordDoc, "Character", Character.Character)
+    
+    ' TODO: 后续可补充写入更多内容
+    MsgBox "角色导出完成，后续内容请补充PrintToWord调用。", vbInformation
+End Sub
+
+Public Function PrintSignedNumber(ByVal num As Integer) As String
+    If num > 0 Then
+        PrintSignedNumber = "+" & CStr(num)
+    ElseIf num < 0 Then
+        PrintSignedNumber = CStr(num)
+    Else
+        PrintSignedNumber = ""
+    End If
+End Function
+
+Public Function PrintBoolean(ByVal val As Boolean) As String
+    If val = True Then
+        PrintBoolean = ChrW(&H2022)
+    Else
+        PrintBoolean = ""
+    End If
 End Function

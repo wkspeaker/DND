@@ -951,3 +951,138 @@ Private Sub Class_Terminate()
     Set mCharacterSpellSlots = Nothing
 End Sub
 
+' 导出指定属性值，按SplitString分隔
+Public Function ExportValues(ByVal SplitString As String, ParamArray PropNames() As Variant) As String
+    Dim result As String
+    Dim i As Integer
+    For i = LBound(PropNames) To UBound(PropNames)
+        If i > LBound(PropNames) Then result = result & SplitString
+        result = result & CStr(CallByName(Me, PropNames(i), VbGet))
+    Next i
+    ExportValues = result
+End Function
+
+' 导出指定类型的Memo内容，按换行分隔
+Public Function ExportMemoLists(ParamArray MemoTypes() As Variant) As String
+    Dim result As String
+    Dim memo As Object
+    Dim i As Integer
+    For Each memo In Me.CharacterMemoList
+        For i = LBound(MemoTypes) To UBound(MemoTypes)
+            If memo.MemoType = MemoTypes(i) Then
+                If result <> "" Then result = result & vbCrLf
+                result = result & memo.Contents
+            End If
+        Next i
+    Next memo
+    ExportMemoLists = result
+End Function
+
+' 导出装备状态为Equiped的攻击列表，按Pattern格式化
+Public Function ExportAttackLists(ByVal Pattern As String, ByVal Equiped As Boolean) As String
+    Dim result As String, line As String
+    Dim atk As Object
+    Dim arr() As String, widths() As Integer
+    Dim i As Integer
+    arr = Split(Pattern, "|")
+    ReDim widths(UBound(arr))
+    For i = 0 To UBound(arr)
+        widths(i) = Val(arr(i))
+    Next i
+    For Each atk In Me.CharacterAttackSpellList
+        If atk.ItemType = "Attack" And atk.Equiped = Equiped Then
+            Dim fields(4) As String
+            fields(0) = Functions.PrintBoolean(atk.Equiped)
+            fields(1) = atk.Name
+            If atk.Attuned Then
+                fields(2) = "(*)"
+            Else
+                fields(2) = ""
+            End If
+            fields(3) = Functions.PrintSignedNumber(atk.AtkBonus)
+            fields(4) = atk.Damage_Type
+            line = ""
+            For i = 0 To 4
+                Dim val As String
+                val = fields(i)
+                If widths(i) > 0 And Len(val) < widths(i) Then
+                    val = val & Space(widths(i) - Len(val))
+                End If
+                line = line & val
+            Next i
+            If result <> "" Then result = result & vbCrLf
+            result = result & line
+        End If
+    Next atk
+    ExportAttackLists = result
+End Function
+
+' 导出装备状态为Equiped的法术列表，按Pattern格式化
+Public Function ExportAtkSpellLists(ByVal Pattern As String, ByVal Equiped As Boolean) As String
+    Dim result As String, line As String
+    Dim spl As Object
+    Dim arr() As String, widths() As Integer
+    Dim i As Integer
+    arr = Split(Pattern, "|")
+    ReDim widths(UBound(arr))
+    For i = 0 To UBound(arr)
+        widths(i) = Val(arr(i))
+    Next i
+    For Each spl In Me.CharacterAttackSpellList
+        If spl.ItemType = "Spell" And spl.Equiped = Equiped Then
+            Dim fields(3) As String
+            fields(0) = Functions.PrintBoolean(spl.Equiped)
+            fields(1) = spl.Name
+            fields(2) = spl.Damage_Type
+            fields(3) = spl.SpellMemo
+            line = ""
+            For i = 0 To 3
+                Dim val As String
+                val = fields(i)
+                If widths(i) > 0 And Len(val) < widths(i) Then
+                    val = val & Space(widths(i) - Len(val))
+                End If
+                line = line & val
+            Next i
+            If result <> "" Then result = result & vbCrLf
+            result = result & line
+        End If
+    Next spl
+    ExportAtkSpellLists = result
+End Function
+
+' 导出装备列表，按Pattern格式化
+Public Function ExportEquipmntList(ByVal Pattern As String) As String
+    Dim result As String, line As String
+    Dim eq As Object
+    Dim arr() As String, widths() As Integer
+    Dim i As Integer
+    arr = Split(Pattern, "|")
+    ReDim widths(UBound(arr))
+    For i = 0 To UBound(arr)
+        widths(i) = Val(arr(i))
+    Next i
+    For Each eq In Me.CharacterEquipmentList
+        Dim fields(2) As String
+        fields(0) = eq.Name
+        If eq.Attuned Then
+            fields(1) = "(*)"
+        Else
+            fields(1) = ""
+        End If
+        fields(2) = eq.Quantity
+        line = ""
+        For i = 0 To 2
+            Dim val As String
+            val = fields(i)
+            If widths(i) > 0 And Len(val) < widths(i) Then
+                val = val & Space(widths(i) - Len(val))
+            End If
+            line = line & val
+        Next i
+        If result <> "" Then result = result & vbCrLf
+        result = result & line
+    Next eq
+    ExportEquipmntList = result
+End Function
+

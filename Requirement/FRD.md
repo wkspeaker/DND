@@ -69,6 +69,7 @@ V1|2025/06/13|初版，基础文档
         - shCharacterEquipment.ListObject(1)
         - shCharacterSpell.ListObject(1)
         - shCharacterSpellSlot.ListObject(1)
+    - 清空表格时，采用辅助函数ClearTableRows，能彻底删除所有数据行，避免残留空行。
     - 针对数据字典Characters中的每一个项目,读取相应的CharacterMaster对象,将其中的各个Collection中的记录同样遍历,写入各个数据表中。
         - Collection CharacterMemoList 写入 shCharacterMemo.ListObject(1)
         - Collection CharacterAttackSpellList 写入 shCharacterAttackSpell.ListObject(1)
@@ -723,3 +724,361 @@ End Sub
 - 调用 UIToCharacter 读取当前 UI 上的角色信息。
 - 如果字典中已存在该角色，则替换，否则新增。
 - 最后写回所有角色并清理对象。
+```
+
+### Public Function CreateWordFromTemplate(ByVal TemplateName As String) As Object
+
+该函数用于根据指定模板名称，从Note页命名单元格获取Word模板文件名，并在\Documents\目录下以该模板新建Word文档，返回新建文档对象。
+
+```vba
+Public Function CreateWordFromTemplate(ByVal TemplateName As String) As Object
+    Dim wordApp As Object
+    Dim wordDoc As Object
+    Dim templatePath As String, fileName As String
+    Dim docFolder As String
+    
+    ' 1. 读取Word文件名（从shNote或Worksheets("Note")）
+    On Error Resume Next
+    fileName = shNote.Range(TemplateName).Value
+    If fileName = "" Then
+        fileName = Worksheets("Note").Range(TemplateName).Value
+    End If
+    On Error GoTo 0
+    If fileName = "" Then
+        MsgBox "未指定Word文件名！", vbExclamation
+        Set CreateWordFromTemplate = Nothing
+        Exit Function
+    End If
+    
+    ' 2. 构造完整路径
+    docFolder = ThisWorkbook.Path & "\Documents\"
+    If Right(docFolder, 1) <> "\" Then docFolder = docFolder & "\"
+    templatePath = docFolder & fileName
+    
+    If Dir(templatePath) = "" Then
+        MsgBox "找不到模板文件：" & templatePath, vbExclamation
+        Set CreateWordFromTemplate = Nothing
+        Exit Function
+    End If
+    
+    ' 3. 用模板新建文档
+    Set wordApp = CreateObject("Word.Application")
+    wordApp.Visible = True
+    Set wordDoc = wordApp.Documents.Add(Template:=templatePath, NewTemplate:=False)
+    
+    ' 4. 返回文档对象
+    Set CreateWordFromTemplate = wordDoc
+End Function
+```
+
+**功能说明：**
+- 通过TemplateName参数，查找Note页对应命名单元格，获取Word模板文件名。
+- 在\Documents\目录下查找该模板文件。
+- 用该模板新建Word文档，返回文档对象（wordDoc）。
+- 若找不到文件或名称，弹出消息框并返回Nothing。
+
+**注意事项：**
+- 返回的wordDoc对象由调用者负责后续操作和释放（如填充内容、保存、关闭、Set为Nothing等）。
+- 不要在函数内部将wordDoc设为Nothing，否则外部无法继续操作该文档。
+
+### Public Sub ExportCharacter()
+
+该过程用于将当前shGeneral页面上的角色信息导出到Word文档。
+
+```vba
+Public Sub ExportCharacter()
+    Dim CharacterID As Variant
+    Dim Character As CharacterMaster
+    Dim wordDoc As Object
+    
+    ' 1. 获取当前角色ID
+    CharacterID = shGeneral.Range("CharacterID").Value
+    If Not IsNumeric(CharacterID) Or IsEmpty(CharacterID) Then
+        MsgBox "无效的角色ID！", vbExclamation
+        Exit Sub
+    End If
+    
+    ' 2. 获取当前角色对象
+    Set Character = UIToCharacter(CLng(CharacterID))
+    If Character Is Nothing Then
+        MsgBox "未能获取角色对象！", vbExclamation
+        Exit Sub
+    End If
+    
+    ' 3. 创建Word文档（模板名可根据实际情况调整）
+    Set wordDoc = CreateWordFromTemplate("CharacterSheet")
+    If wordDoc Is Nothing Then
+        MsgBox "Word文档创建失败！", vbExclamation
+        Exit Sub
+    End If
+    
+    ' 4. 写入角色名到Word文档Tag为"Character"的ContentControl
+    Call PrintToWord(wordDoc, "Character", Character.Character)
+    
+    ' TODO: 后续可补充写入更多内容
+    MsgBox "角色导出完成，后续内容请补充PrintToWord调用。", vbInformation
+End Sub
+```
+
+**功能说明：**
+- 获取当前shGeneral页面的CharacterID。
+- 调用UIToCharacter获取当前角色对象。
+- 调用CreateWordFromTemplate生成Word文档（模板名为"CharacterSheet"，可根据实际情况调整）。
+- 调用PrintToWord，将角色名写入Word文档中Tag为"Character"的ContentControl。
+- 预留后续可扩展写入更多内容。
+
+**注意事项：**
+- 需保证Word模板中存在Tag为"Character"的ContentControl。
+- 后续如需批量写入更多内容，只需补充多次PrintToWord调用。
+
+## Word自动化开发补充说明
+
+在本项目中，针对Excel与Word自动化联动，实际开发和测试过程中遇到如下关键问题点和注意事项，建议后续开发时务必参考：
+
+1. **通过模板方式新建Word文档**
+   - 推荐用 `Documents.Add(Template:=...)` 以模板（可为 `.docx` 文件）新建文档，而不是复制文件或直接打开。
+   - 优点：不会影响原模板文件，生成的新文档初始为"未保存"状态，便于后续保存为任意文件名。
+
+2. **内容控件（ContentControl）的遍历**
+   - 内容控件可能存在于多个区域：主文档区（正文）、文本框（Shape/TextBox）、页眉、页脚、表格等。
+   - 遍历方式：
+     - 主文档区：`For Each cc In wordDoc.ContentControls`
+     - 文本框等Shape中：`For Each shp In wordDoc.Shapes`，再 `For Each cc In shp.TextFrame.TextRange.ContentControls`
+   - 只遍历 `wordDoc.ContentControls` 不能覆盖所有情况，必须同时遍历 `Shapes`。
+
+3. **For Each 中变量类型声明**
+   - 必须用 `Dim cc As Object` 或 `Dim cc As Word.ContentControl`，不能用 `Dim cc As Shape` 或其他类型，否则会"类型不匹配"。
+   - 同理，`shp` 也建议用 `Dim shp As Object`，兼容性更好。
+
+4. **内容控件的Tag用法**
+   - 推荐用Tag作为唯一标识，便于VBA自动化查找和赋值。
+   - 设计模板时，所有需要自动化填充的内容控件都应设置唯一Tag。
+
+5. **对象释放与资源管理**
+   - 即使不关闭Word窗口，也应 `Set wordDoc = Nothing`，`Set wordApp = Nothing`，防止内存泄漏。
+
+6. **模板文件格式**
+   - `.docx` 也可作为模板，无需专门保存为 `.dotx`。
+   - 用 `Documents.Add(Template:=...)` 创建的新文档不会影响原文件，也不会自动保存。
+
+7. **内容控件在文本框/Shape中的访问**
+   - VBA只能通过 `Shape.TextFrame.TextRange.ContentControls` 访问文本框中的内容控件，不能通过主文档集合访问。
+
+8. **其他建议**
+   - 若有文本框、页眉页脚等特殊区域，务必在VBA中遍历所有相关集合。
+   - 测试时可先用 `.Visible = True`，正式批量生成时可设为 `False`。
+
+如需将本补充说明扩展为开发文档、代码注释模板或进一步细化，请随时补充！
+
+### Public Function PrintSignedNumber(ByVal num As Integer) As String
+
+该函数用于将整数以带符号的字符串形式输出，常用于属性加值等场景。
+
+```vba
+Public Function PrintSignedNumber(ByVal num As Integer) As String
+    If num > 0 Then
+        PrintSignedNumber = "+" & CStr(num)
+    ElseIf num < 0 Then
+        PrintSignedNumber = CStr(num)
+    Else
+        PrintSignedNumber = ""
+    End If
+End Function
+```
+
+**功能说明：**
+- num > 0 时返回 "+5" 形式
+- num < 0 时返回 "-4" 形式
+- num = 0 时返回空字符串
+
+**示例：**
+- PrintSignedNumber(5)   → "+5"
+- PrintSignedNumber(-4)  → "-4"
+- PrintSignedNumber(0)   → ""
+
+---
+
+### Public Function PrintBoolean(ByVal val As Boolean) As String
+
+该函数用于将布尔值以符号形式输出，常用于Word/Excel等文本输出格式化。
+
+```vba
+Public Function PrintBoolean(ByVal val As Boolean) As String
+    If val = True Then
+        PrintBoolean = ChrW(&H2022)
+    Else
+        PrintBoolean = ""
+    End If
+End Function
+```
+
+**功能说明：**
+- val = True 时返回黑点符号（ChrW(&H2022)）
+- val = False 时返回空字符串
+
+**示例：**
+- PrintBoolean(True)  → "•"
+- PrintBoolean(False) → ""
+```
+
+### Public Function ExportValues(ByVal SplitString As String, ParamArray PropNames() As Variant) As String
+
+该方法用于按顺序拼接指定属性值，中间用SplitString分隔。
+
+```vba
+ExportValues(" Lv ", "Class", "ClassLv") ' 结果如："战士 Lv 5"
+```
+
+- 依次读取参数列表中的属性名，取当前对象的属性值，按SplitString连接。
+
+---
+
+### Public Function ExportMemoLists(ParamArray MemoTypes() As Variant) As String
+
+该方法用于导出CharacterMemoList中指定类型的内容，内容间用换行符分隔。
+
+```vba
+ExportMemoLists("Features", "Traits")
+' 结果为所有MemoType为Features或Traits的Contents内容，按行拼接
+```
+
+- 遍历CharacterMemoList，匹配MemoType，拼接Contents。
+
+---
+
+### Public Function ExportAttackLists(ByVal Pattern As String, ByVal Equiped As Boolean) As String
+
+该方法用于导出装备状态为Equiped的攻击列表，按Pattern格式化。
+
+```vba
+ExportAttackLists("0|12|5|8|0", True)
+' 结果如：
+' •阳炎剑         (*)  +8      1d8+2,光耀
+' •吸失盾                      AC+2
+```
+
+- Pattern为数字加|的字符串，定义各字段宽度。
+- 字段顺序：Equiped, Name, Attuned, AtkBonus, Damage_Type。
+- Equiped为True输出黑点，Attuned为True输出(*)，AtkBonus用PrintSignedNumber格式化。
+- 多条记录用换行符分隔。
+
+---
+
+### Public Function ExportAtkSpellLists(ByVal Pattern As String, ByVal Equiped As Boolean) As String
+
+该方法用于导出装备状态为Equiped的法术列表，按Pattern格式化。
+
+```vba
+ExportAtkSpellLists("0|12|16|0", True)
+' 结果如：
+' •龙息          2d6,寒冷          种族:向前喷吐一道15英尺锥形的吐息.(短/长休一次)DC12+体质
+```
+
+- Pattern为数字加|的字符串，定义各字段宽度。
+- 字段顺序：Equiped, Name, Damage_Type, SpellMemo。
+- Equiped为True输出黑点。
+- 多条记录用换行符分隔。
+
+---
+
+### Public Function ExportEquipmntList(ByVal Pattern As String) As String
+
+该方法用于导出装备列表，按Pattern格式化。
+
+```vba
+ExportEquipmntList("8|0|0")
+' 结果如：
+' 龙鳞甲     (*)1
+' 长剑      1
+```
+
+- Pattern为数字加|的字符串，定义各字段宽度。
+- 字段顺序：Name, Attuned, Quantity。
+- Attuned为True输出(*)。
+- 多条记录用换行符分隔。
+```
+
+### Public Sub FastFillWordContentControls(wordDoc As Object, dict As Object)
+
+该过程用于将字典中的内容批量写入Word文档的内容控件中。
+
+```vba
+Sub FastFillWordContentControls(wordDoc As Object, dict As Object)
+    Dim wordApp As Object
+    Set wordApp = wordDoc.Application
+    wordApp.ScreenUpdating = False
+    wordApp.EnableEvents = False
+
+    Dim cc As Object, shp As Object
+    ' 正文
+    For Each cc In wordDoc.ContentControls
+        If dict.Exists(cc.Tag) Then
+            cc.Range.Text = dict(cc.Tag)
+        End If
+    Next
+    ' Shapes
+    For Each shp In wordDoc.Shapes
+        If shp.Type = 17 Then
+            For Each cc In shp.TextFrame.TextRange.ContentControls
+                If dict.Exists(cc.Tag) Then
+                    cc.Range.Text = dict(cc.Tag)
+                End If
+            Next
+        End If
+    Next
+
+    wordApp.ScreenUpdating = True
+    wordApp.EnableEvents = True
+End Sub
+```
+
+**功能说明：**
+- 该过程用于将字典中的内容批量写入Word文档的内容控件中。
+- 通过遍历Word文档中的所有内容控件，将字典中的内容写入相应的控件中。
+- 该过程可以提高写入效率，避免多次遍历控件。
+
+**注意事项：**
+- 该过程需要传入一个Word文档对象和一个字典对象。
+- 字典中的键值对需要与Word文档中的ContentControl的Tag相对应。
+- 该过程会关闭屏幕刷新和事件，以提高写入效率。
+
+### 文本框内容自适应字号（防止内容溢出）
+
+**需求描述：**
+- 在Word模板中，若文本框（Shape）内的富文本ContentControl写入内容过长，可能会被截断。
+- 希望自动检测内容是否溢出，并在溢出时递减字号，直至内容完整显示或达到最小字号。
+- 不希望在代码中指定初始字号，而是以模板中设置的字号为起点。
+
+**推荐实现思路：**
+- Word VBA 没有直接的 BoundWidth/BoundHeight 属性用于检测文本溢出。
+- 可采用"递减字号，直到文本框内容和原内容一致（未被截断）"的变通法。
+- 适用于普通文本框+富文本内容控件的场景。
+
+**示例代码：**
+
+```vba
+Sub FitContentControlFontToTextbox(cc As Object, shp As Object, Optional minFontSize As Integer = 8)
+    Dim curFontSize As Integer
+    Dim originalText As String
+    curFontSize = cc.Range.Font.Size
+    If curFontSize = 0 Then curFontSize = 12 ' 兜底
+    originalText = cc.Range.Text
+
+    ' 递减字号直到文本框内容和原内容一致（未被截断），或到达最小字号
+    Do While (shp.TextFrame.TextRange.Text <> originalText) And curFontSize > minFontSize
+        curFontSize = curFontSize - 1
+        cc.Range.Font.Size = curFontSize
+        DoEvents
+    Loop
+End Sub
+```
+
+**用法说明：**
+- 先写入内容，再调用该过程。
+- 只在内容溢出时递减字号，起点为模板中ContentControl的字号。
+- 可批量处理所有文本框中的ContentControl。
+
+**注意事项：**
+- 该方法为变通法，适用于大多数普通文本框场景。
+- 若内容控件内有复杂格式或特殊换行，需进一步定制。
+- Word VBA 不支持 BoundWidth/BoundHeight，不能像PowerPoint那样直接检测溢出。
