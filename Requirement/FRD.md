@@ -182,6 +182,26 @@ V1|2025/06/13|初版，基础文档
         - .Offset(0,1) = SpellSlot.SpellLevel
         - .Offset(0,2) = SpellSlot.SlotsTotal
         - .Offset(0,3) = SpellSlot.SlotsExpended
+21. Public Function SpellSlotByLevel(ByVal SpellLv As Integer) As String
+    根据SpellLv返回SlotsTotal。
+    在CharacterMaster对象的CharacterSpellSlots中遍历记录,如果CharacterSpellSlot对象的SpellLevel=SpellLv,则返回SlotsTotal。因为记录的唯一性,所以只要匹配到SpellLevel=SpellLv,就可以返回SlotsTotal并终止循环。如果没有匹配到SpellLevel或者CharacterSpellSlots为空,则返回空字符串。
+22. Public Function SpellSlotsInString(ByVal SpellLv As Integer) As String
+    根据SpellLv将法术位以图形方式返回字符串。
+    在CharacterMaster对象的CharacterSpellSlots中遍历记录,如果CharacterSpellSlot对象的SpellLevel=SpellLv,则根据SlotsTotal返回字符串,字符串构成为ChrW(&H25EF)重复SlotsTotal次数。例如SlotsTotal=5,则返回◯◯◯◯◯。因为记录的唯一性,所以只要匹配到SpellLevel=SpellLv,就可以返回SlotsTotal并终止循环。如果没有匹配到SpellLevel或者CharacterSpellSlots为空,则返回空字符串。
+23. Public Function ExportSpellList(ByVal Pattern As String, ByVal SpellLv As Integer) As String
+    根据输入的SpellLv在CharacterSpellList中定位相应的记录(CharacterSpell.SpellLevel = SpellLv,记录不唯一,因此需要遍历整个列表),针对每条匹配到的记录依次取NeedPrep/Prepared, Name, Description, 根据Pattern来组合字符串,多个记录之间通过换行符链接。
+    第一个字段需要根据NeedPrep和Prepared来返回结果:
+        if not NeedPrep then
+            return ChrW(&H2605) '实心五角星
+        else
+            if Prepared then
+                return ChrW(&H2022) '实心圆点
+            else
+                return ChrW(&H25EF) '空心圆
+            end if
+        end if
+    Pattern为数字加"|"的字符串,用以定义各字段的长度。如果数字部分小于对应字段长度,则直接返回字段,如果数字部分大于字段长度,则将字段值通过空格补齐。
+    举例: Pattern为5|8|0,表示这个pattern中包含3个字段,对应了要求中的NeedPrep/Prepared, Name 和Description。
 
 ### 新增辅助函数与过程
 

@@ -97,7 +97,7 @@ Private mMoneySP As Integer
 Private mMoneyEP As Integer
 Private mMoneyGP As Integer
 Private mMoneyPP As Integer
-Private mAge As Integer
+Private mAge As String
 Private mHeight As String
 Private mWeight As String
 Private mEyes As String
@@ -812,11 +812,11 @@ Public Property Let MoneyPP(ByVal value As Integer)
     mMoneyPP = value
 End Property
 
-Public Property Get Age() As Integer
+Public Property Get Age() As String
     Age = mAge
 End Property
 
-Public Property Let Age(ByVal value As Integer)
+Public Property Let Age(ByVal value As String)
     mAge = value
 End Property
 
@@ -951,7 +951,8 @@ Private Sub Class_Terminate()
     Set mCharacterSpellSlots = Nothing
 End Sub
 
-' 导出指定属性值，按SplitString分隔
+
+'����ָ������ֵ,��SplitString�ָ�
 Public Function ExportValues(ByVal SplitString As String, ParamArray PropNames() As Variant) As String
     Dim result As String
     Dim i As Integer
@@ -962,7 +963,7 @@ Public Function ExportValues(ByVal SplitString As String, ParamArray PropNames()
     ExportValues = result
 End Function
 
-' 导出指定类型的Memo内容，按换行分隔
+'����ָ�����͵�Memo����,�����зָ�
 Public Function ExportMemoLists(ParamArray MemoTypes() As Variant) As String
     Dim result As String
     Dim memo As Object
@@ -978,16 +979,17 @@ Public Function ExportMemoLists(ParamArray MemoTypes() As Variant) As String
     ExportMemoLists = result
 End Function
 
-' 导出装备状态为Equiped的攻击列表，按Pattern格式化
+'����װ��״̬ΪEquiped�Ĺ����б�,��Pattern��ʽ��
 Public Function ExportAttackLists(ByVal Pattern As String, ByVal Equiped As Boolean) As String
     Dim result As String, line As String
     Dim atk As Object
     Dim arr() As String, widths() As Integer
     Dim i As Integer
+    Dim valStr As String
     arr = Split(Pattern, "|")
     ReDim widths(UBound(arr))
     For i = 0 To UBound(arr)
-        widths(i) = Val(arr(i))
+        widths(i) = val(arr(i))
     Next i
     For Each atk In Me.CharacterAttackSpellList
         If atk.ItemType = "Attack" And atk.Equiped = Equiped Then
@@ -1003,12 +1005,11 @@ Public Function ExportAttackLists(ByVal Pattern As String, ByVal Equiped As Bool
             fields(4) = atk.Damage_Type
             line = ""
             For i = 0 To 4
-                Dim val As String
-                val = fields(i)
-                If widths(i) > 0 And Len(val) < widths(i) Then
-                    val = val & Space(widths(i) - Len(val))
+                valStr = fields(i)
+                If widths(i) > 0 And Len(valStr) < widths(i) Then
+                    valStr = valStr & Space(widths(i) - Len(valStr))
                 End If
-                line = line & val
+                line = line & valStr
             Next i
             If result <> "" Then result = result & vbCrLf
             result = result & line
@@ -1017,19 +1018,20 @@ Public Function ExportAttackLists(ByVal Pattern As String, ByVal Equiped As Bool
     ExportAttackLists = result
 End Function
 
-' 导出装备状态为Equiped的法术列表，按Pattern格式化
-Public Function ExportAtkSpellLists(ByVal Pattern As String, ByVal Equiped As Boolean) As String
+'����������CharacterAtkSpellList�е�Spell,��Pattern��ʽ��
+Public Function ExportAtkSpellLists(ByVal Pattern As String) As String
     Dim result As String, line As String
     Dim spl As Object
     Dim arr() As String, widths() As Integer
     Dim i As Integer
+    Dim valStr As String
     arr = Split(Pattern, "|")
     ReDim widths(UBound(arr))
     For i = 0 To UBound(arr)
-        widths(i) = Val(arr(i))
+        widths(i) = val(arr(i))
     Next i
     For Each spl In Me.CharacterAttackSpellList
-        If spl.ItemType = "Spell" And spl.Equiped = Equiped Then
+        If spl.ItemType = "Spell" Then
             Dim fields(3) As String
             fields(0) = Functions.PrintBoolean(spl.Equiped)
             fields(1) = spl.Name
@@ -1037,12 +1039,11 @@ Public Function ExportAtkSpellLists(ByVal Pattern As String, ByVal Equiped As Bo
             fields(3) = spl.SpellMemo
             line = ""
             For i = 0 To 3
-                Dim val As String
-                val = fields(i)
-                If widths(i) > 0 And Len(val) < widths(i) Then
-                    val = val & Space(widths(i) - Len(val))
+                valStr = fields(i)
+                If widths(i) > 0 And Len(valStr) < widths(i) Then
+                    valStr = valStr & Space(widths(i) - Len(valStr))
                 End If
-                line = line & val
+                line = line & valStr
             Next i
             If result <> "" Then result = result & vbCrLf
             result = result & line
@@ -1051,16 +1052,17 @@ Public Function ExportAtkSpellLists(ByVal Pattern As String, ByVal Equiped As Bo
     ExportAtkSpellLists = result
 End Function
 
-' 导出装备列表，按Pattern格式化
+'����װ���б�,��Pattern��ʽ��
 Public Function ExportEquipmntList(ByVal Pattern As String) As String
     Dim result As String, line As String
     Dim eq As Object
     Dim arr() As String, widths() As Integer
     Dim i As Integer
+    Dim valStr As String
     arr = Split(Pattern, "|")
     ReDim widths(UBound(arr))
     For i = 0 To UBound(arr)
-        widths(i) = Val(arr(i))
+        widths(i) = val(arr(i))
     Next i
     For Each eq In Me.CharacterEquipmentList
         Dim fields(2) As String
@@ -1073,16 +1075,95 @@ Public Function ExportEquipmntList(ByVal Pattern As String) As String
         fields(2) = eq.Quantity
         line = ""
         For i = 0 To 2
-            Dim val As String
-            val = fields(i)
-            If widths(i) > 0 And Len(val) < widths(i) Then
-                val = val & Space(widths(i) - Len(val))
+            valStr = fields(i)
+            If widths(i) > 0 And Len(valStr) < widths(i) Then
+                valStr = valStr & Space(widths(i) - Len(valStr))
             End If
-            line = line & val
+            line = line & valStr
         Next i
         If result <> "" Then result = result & vbCrLf
         result = result & line
     Next eq
     ExportEquipmntList = result
 End Function
+
+' 根据SpellLv返回SlotsTotal
+Public Function SpellSlotByLevel(ByVal SpellLv As Integer) As String
+    Dim slot As Object
+    If Me.CharacterSpellSlots Is Nothing Or Me.CharacterSpellSlots.Count = 0 Then
+        SpellSlotByLevel = ""
+        Exit Function
+    End If
+    For Each slot In Me.CharacterSpellSlots
+        If slot.SpellLevel = SpellLv Then
+            SpellSlotByLevel = CStr(slot.SlotsTotal)
+            Exit Function
+        End If
+    Next slot
+    SpellSlotByLevel = ""
+End Function
+
+' 根据SpellLv将法术位以图形方式返回字符串
+Public Function SpellSlotsInString(ByVal SpellLv As Integer) As String
+    Dim slot As Object
+    Dim i As Integer
+    If Me.CharacterSpellSlots Is Nothing Or Me.CharacterSpellSlots.Count = 0 Then
+        SpellSlotsInString = ""
+        Exit Function
+    End If
+    For Each slot In Me.CharacterSpellSlots
+        If slot.SpellLevel = SpellLv Then
+            For i = 1 To slot.SlotsTotal
+                SpellSlotsInString = SpellSlotsInString & ChrW(&H25EF)
+            Next i
+            Exit Function
+        End If
+    Next slot
+    SpellSlotsInString = ""
+End Function
+
+' 根据输入的SpellLv导出法术列表
+Public Function ExportSpellList(ByVal Pattern As String, ByVal SpellLv As Integer) As String
+    Dim result As String, line As String
+    Dim spl As Object
+    Dim arr() As String, widths() As Integer
+    Dim i As Integer
+    Dim valStr As String
+    arr = Split(Pattern, "|")
+    ReDim widths(UBound(arr))
+    For i = 0 To UBound(arr)
+        widths(i) = Val(arr(i))
+    Next i
+    For Each spl In Me.CharacterSpellList
+        If spl.SpellLevel = SpellLv Then
+            Dim fields(2) As String
+            ' 第一个字段: NeedPrep/Prepared 状态符号
+            If Not spl.NeedPrep Then
+                fields(0) = ChrW(&H2605) ' 实心五角星
+            Else
+                If spl.Prepared Then
+                    fields(0) = ChrW(&H2022) ' 实心圆点
+                Else
+                    fields(0) = ChrW(&H25EF) ' 空心圆
+                End If
+            End If
+            fields(1) = spl.Name
+            fields(2) = spl.Description
+            line = ""
+            For i = 0 To 2
+                valStr = fields(i)
+                If widths(i) > 0 And Len(valStr) < widths(i) Then
+                    valStr = valStr & Space(widths(i) - Len(valStr))
+                End If
+                line = line & valStr
+            Next i
+            If result <> "" Then result = result & vbCrLf
+            result = result & line
+        End If
+    Next spl
+    ExportSpellList = result
+End Function
+
+' End of class
+
 
